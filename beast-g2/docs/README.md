@@ -2,7 +2,8 @@
 
 Start with the document that matches your question. Architecture and limits are in
 `ANALYSIS.md`; security and quality findings are in `AUDIT.md`; known gaps and
-next steps are in `BACKLOG.md`.
+next steps are in `BACKLOG.md`; product direction inspired by IRIS is in
+`IRIS-COMPARISON.md`.
 
 | Document | What it covers |
 | --- | --- |
@@ -10,6 +11,7 @@ next steps are in `BACKLOG.md`.
 | [REVIEW.md](REVIEW.md) | Critical review of the prototype and open risks |
 | [AUDIT.md](AUDIT.md) | Security and code-quality audit with evidence and fixes |
 | [BACKLOG.md](BACKLOG.md) | Deferred work and next iterations |
+| [IRIS-COMPARISON.md](IRIS-COMPARISON.md) | Product direction inspired by IRIS, P1/P2 proposals and what not to copy |
 | [CONTINUOUS.md](CONTINUOUS.md) | Continuous listening and hint queue |
 | [CONVERSATION.md](CONVERSATION.md) | Conversation context and phone history |
 | [SPEECH-AND-WEB.md](SPEECH-AND-WEB.md) | Speech quality and optional web evidence |

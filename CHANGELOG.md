@@ -17,6 +17,7 @@ All notable changes to this repository are documented here. The format follows [
 - Pure view rules in `src/view.ts` for busy state, history visibility, mode switching and connection messages.
 - Gateway rate limiting (`RATE_LIMIT`, `RATE_WINDOW_MS`) with `Retry-After`, and a 1 MiB cap on STT provider responses.
 - `docs/README.md` as an index of architecture, review, audit, deployment and handoff notes.
+- `docs/IRIS-COMPARISON.md` with product direction, P1/P2 proposals, open questions and explicit non-goals, linked from the docs index and backlog.
 
 ### Changed
 

@@ -2,6 +2,7 @@
 
 Aktualizováno: 25. října 2026. Výchozí verze: 0.5.0, PR #5 sloučen.
 Stav níže uvedených položek: navrženo, neimplementováno/neověřeno, pokud není uvedeno jinak. Pořadí je návrh pro další iterace, nikoli závazný harmonogram.
+Produktový rámec a priority z porovnání s IRIS jsou v [IRIS-COMPARISON.md](IRIS-COMPARISON.md). Tento backlog zůstává seznam konkrétních iterací.
 
 ## IRIS: srovnávací test a inspirace
 
@@ -23,10 +24,10 @@ Stav níže uvedených položek: navrženo, neimplementováno/neověřeno, pokud
 
 - Ovládání četnosti kontextových hintů bez zastavení mikrofonu, včetně dočasné pauzy nápověd.
 - Definovat minimální rozestup a potlačení opakovaných témat; příkazy uživatele a chyby nesmí zmizet v potlačených hintech.
-- Zachovat výchozí režim odpovědi na každou promluvu po 2 s ticha. Regulace se týká volitelného kontextového režimu.
+- Výchozí chování je předmětem P1.1 v [IRIS-COMPARISON.md](IRIS-COMPARISON.md); Direct zachová odpověď na každou promluvu. B3 řeší regulaci uvnitř zvoleného režimu.
 - Přijetí: změna četnosti za běhu neztratí přepis, nepřeruší poslech a nevyprázdní historii; jasně ukázat stav pauzy nápověd.
 
-### B4 · P2 · Souhrn po skončení relace
+### B4 · P1 · Souhrn po skončení relace
 
 - Na vyžádání vytvořit rozhodnutí, úkoly, otevřené otázky a krátký souhrn přes Beast.
 - U úkolů uvádět vlastníka/termín pouze tehdy, když zazněl; chybějící údaje označit. Umožnit dohledat podklad v přepisu a opravit výsledek.
