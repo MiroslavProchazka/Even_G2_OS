@@ -8,7 +8,7 @@ export function gesture(event: EvenHubEvent): Gesture | undefined {
   if (sys === OsEventTypeList.FOREGROUND_ENTER_EVENT) return 'resume'
   // Only existing text/list envelopes may normalize omitted protobuf zero into a tap.
   const input = event.textEvent ?? event.listEvent
-  const type = input ? input.eventType ?? 0 : sys
+  const type = input ? (input.eventType ?? 0) : sys
   if (type === 0) return 'tap'
   if (type === 3) return 'exit'
   if (type === 1) return 'previous'
@@ -20,50 +20,117 @@ export async function connectEven(initial: string, onGesture: (gesture: Gesture)
 export async function attachEven(bridge: Awaited<ReturnType<typeof waitForEvenAppBridge>>, initial: string, onGesture: (gesture: Gesture) => void, onPcm: (pcm: Uint8Array) => void, timeoutMs = 8000) {
   const rendered = new Map<number, string>()
   let disposed = false
-  let capture = false, operations = Promise.resolve()
-  const serialize = (operation: () => Promise<void>) => { const result = operations.then(operation); operations = result.catch(() => {}); return deadline(result, timeoutMs) }
-  const unsubscribe = bridge.onEvenHubEvent(event => {
+  let capture = false,
+    operations = Promise.resolve()
+  const serialize = (operation: () => Promise<void>) => {
+    const result = operations.then(operation)
+    operations = result.catch(() => {})
+    return deadline(result, timeoutMs)
+  }
+  const unsubscribe = bridge.onEvenHubEvent((event) => {
     if (disposed) return
     if (capture && event.audioEvent?.source === AudioInputSource.Glasses) onPcm(event.audioEvent.audioPcm)
-    const action = gesture(event); if (action) onGesture(action)
+    const action = gesture(event)
+    if (action) onGesture(action)
   })
   try {
-    const result = await bridge.createStartUpPageContainer(new CreateStartUpPageContainer({ containerTotalNum: 3, textObject: [new TextContainerProperty({ xPosition: 8, yPosition: 0, width: 340, height: 28, containerID: 2, containerName: 'status', content: '? NET --M IDLE', isEventCapture: 0 }), new TextContainerProperty({ xPosition: 350, yPosition: 0, width: 218, height: 28, containerID: 3, containerName: 'battery', content: 'G-- P--', isEventCapture: 0 }), new TextContainerProperty({ xPosition: 16, yPosition: 32, width: 544, height: 248, paddingLength: 8, containerID: 1, containerName: 'beast', content: initial, isEventCapture: 1 })] }))
+    const result = await bridge.createStartUpPageContainer(
+      new CreateStartUpPageContainer({
+        containerTotalNum: 3,
+        textObject: [
+          new TextContainerProperty({ xPosition: 8, yPosition: 0, width: 340, height: 28, containerID: 2, containerName: 'status', content: '? NET --M IDLE', isEventCapture: 0 }),
+          new TextContainerProperty({ xPosition: 350, yPosition: 0, width: 218, height: 28, containerID: 3, containerName: 'battery', content: 'G-- P--', isEventCapture: 0 }),
+          new TextContainerProperty({ xPosition: 16, yPosition: 32, width: 544, height: 248, paddingLength: 8, containerID: 1, containerName: 'beast', content: initial, isEventCapture: 1 })
+        ]
+      })
+    )
     if (result !== 0) throw new Error(`G2 page creation failed (${result}).`)
-  } catch (error) { unsubscribe(); throw error }
+  } catch (error) {
+    unsubscribe()
+    throw error
+  }
   return {
     watchStatus: (changed: (status: { battery?: number; connected?: boolean }) => void) => {
-      let alive = true, sn: string | undefined, revision = 0
-      const update = (status: { batteryLevel?: number; connectType?: string }) => changed({ battery: status.batteryLevel, connected: status.connectType === 'connected' ? true : status.connectType && status.connectType !== 'none' ? false : undefined })
-      const unsubscribeStatus = bridge.onDeviceStatusChanged(status => { if (alive && sn && status.sn === sn) { revision++; update(status) } })
-      const poll = async () => { const before = revision; try { const info = await deadline(bridge.getDeviceInfo(), timeoutMs); if (alive && info?.isGlasses()) { sn = info.sn; if (before === revision) update(info.status) } } catch { if (alive) changed({}) } }
-      void poll(); const timer = setInterval(() => { void poll() }, 30000)
-      return () => { alive = false; clearInterval(timer); unsubscribeStatus() }
+      let alive = true,
+        sn: string | undefined,
+        revision = 0
+      const update = (status: { batteryLevel?: number; connectType?: string }) =>
+        changed({ battery: status.batteryLevel, connected: status.connectType === 'connected' ? true : status.connectType && status.connectType !== 'none' ? false : undefined })
+      const unsubscribeStatus = bridge.onDeviceStatusChanged((status) => {
+        if (alive && sn && status.sn === sn) {
+          revision++
+          update(status)
+        }
+      })
+      const poll = async () => {
+        const before = revision
+        try {
+          const info = await deadline(bridge.getDeviceInfo(), timeoutMs)
+          if (alive && info?.isGlasses()) {
+            sn = info.sn
+            if (before === revision) update(info.status)
+          }
+        } catch {
+          if (alive) changed({})
+        }
+      }
+      void poll()
+      const timer = setInterval(() => {
+        void poll()
+      }, 30000)
+      return () => {
+        alive = false
+        clearInterval(timer)
+        unsubscribeStatus()
+      }
     },
     audio: {
-      start: () => serialize(async () => {
-        if (disposed) throw new Error('G2 session disposed.')
-        capture = true
-        try {
-          if (!await bridge.audioControl(true, AudioInputSource.Glasses)) throw new Error('G2 microphone unavailable. Check permission and connection.')
-        } catch (error) {
+      start: () =>
+        serialize(async () => {
+          if (disposed) throw new Error('G2 session disposed.')
+          capture = true
           try {
-            if (await bridge.audioControl(false)) capture = false
-          } catch { /* Leave capture set so the controller retries shutdown. */ }
-          throw error
-        }
-      }),
-      stop: () => serialize(async () => { if (!capture) return; if (!await bridge.audioControl(false)) throw new Error('G2 microphone stop was rejected.'); capture = false })
+            if (!(await bridge.audioControl(true, AudioInputSource.Glasses))) throw new Error('G2 microphone unavailable. Check permission and connection.')
+          } catch (error) {
+            try {
+              if (await bridge.audioControl(false)) capture = false
+            } catch {
+              /* Leave capture set so the controller retries shutdown. */
+            }
+            throw error
+          }
+        }),
+      stop: () =>
+        serialize(async () => {
+          if (!capture) return
+          if (!(await bridge.audioControl(false))) throw new Error('G2 microphone stop was rejected.')
+          capture = false
+        })
     },
     async write(content: string, left = '', right = '') {
       if (disposed) return
-      for (const [containerID, containerName, text] of [[2, 'status', left], [3, 'battery', right], [1, 'beast', content]] as const) {
+      for (const [containerID, containerName, text] of [
+        [2, 'status', left],
+        [3, 'battery', right],
+        [1, 'beast', content]
+      ] as const) {
         if (rendered.get(containerID) === text) continue
-        if (!await bridge.textContainerUpgrade(new TextContainerUpgrade({ containerID, containerName, content: text }))) throw new Error('G2 text update rejected.')
+        if (!(await bridge.textContainerUpgrade(new TextContainerUpgrade({ containerID, containerName, content: text })))) throw new Error('G2 text update rejected.')
         rendered.set(containerID, text)
       }
     },
-    exit: async () => { if (!await deadline(bridge.shutDownPageContainer(1), timeoutMs)) throw new Error('G2 exit rejected.') },
-    dispose: () => { disposed = true; unsubscribe(); void serialize(async () => { if (capture) { if (!await bridge.audioControl(false)) throw new Error('Microphone shutdown rejected.'); capture = false } }).catch(() => diagnostics.record('sdk', 'dispose.stop_failed', { phase: 'unknown' }, 'error')) }
+    exit: async () => {
+      if (!(await deadline(bridge.shutDownPageContainer(1), timeoutMs))) throw new Error('G2 exit rejected.')
+    },
+    dispose: () => {
+      disposed = true
+      unsubscribe()
+      void serialize(async () => {
+        if (capture) {
+          if (!(await bridge.audioControl(false))) throw new Error('Microphone shutdown rejected.')
+          capture = false
+        }
+      }).catch(() => diagnostics.record('sdk', 'dispose.stop_failed', { phase: 'unknown' }, 'error'))
+    }
   }
 }

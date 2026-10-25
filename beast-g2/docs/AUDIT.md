@@ -279,4 +279,33 @@ node ~/.hermes/cache/scratch/audit-gateway.mjs
 node --import tsx ~/.hermes/cache/scratch/audit-continuous.ts
 ```
 
-Skripty jsou v scratchi, ne v repu. Po opravách je přesunu do `tests/` jako regresní testy.
+Skripty zůstávají v scratchi jako jednorázový důkaz. Regresní testy pro všechny opravy jsou v `tests/`.
+
+## Stav po implementaci
+
+Všechny nálezy jsou opravené a kryté testy. `npm test` dává 97/97, `npm run lint` a `npm run format:check` procházejí, `npx tsc --noEmit` je bez chyb a coverage je 94,31 % řádků, 87,79 % větví a 91,48 % funkcí.
+
+| Nález | Jak je vyřešený |
+| --- | --- |
+| A1 | `ContinuousController` má ack deadline (`ackMs`, výchozí 5 s); po něm hint zruší, započítá `repliesDropped` a uvolní frontu. `main.ts` při selhání displeje pozastaví poslech. |
+| A2 | STT odpověď čte `readJson()` s limitem 1 MiB; překročení vrátí 502 `invalid_transcription`. |
+| A3 | Diagnostika bere `version` i `sdk` z `package.json`; test to hlídá. |
+| A4 | `upstream()` posílá `redirect: 'error'` pro chat i STT. |
+| A5 | V demo režimu je token vždy `local-demo-token-only`, bez ohledu na `GATEWAY_TOKEN`. |
+| A6 | `isInsecureGateway()` a `connectionMessage()` varují před HTTP mimo loopback. |
+| A7 | Fixed-window rate limit (`RATE_LIMIT`, `RATE_WINDOW_MS`) vrací 429 s `Retry-After`. Je globální, protože brána má jeden token. |
+| Q1 | Pravidla pro busy stav, viditelnost historie, přepnutí režimu a connection message jsou v `src/view.ts` a mají testy. `main.ts` zůstává tenká DOM vrstva bez browser harnessu. |
+| Q2 | Test živé STT cesty ověřuje multipart, model, jazyk i `redirect: 'error'`. |
+| Q3 | `src/transport.ts` sdílí `readLines()` a `linkAbort()` pro gateway i direct Beast. |
+| Q4 | `gateway.mjs` má rozdělené WAV, chat messages a SSE zápis do menších funkcí. |
+| Q5 | ESLint flat config s `typescript-eslint` a `no-floating-promises` pro `src/`, Prettier a CI job. |
+| T1 | `npm run test:coverage` vynucuje 90 % řádků, 80 % větví a 80 % funkcí na Node 22. |
+| T2 | CI spouští `npm audit --omit=dev --audit-level=high`. |
+| T3 | Všechny actions jsou pinnuté na commit SHA s komentářem verze. |
+| C1 | `loadConfig()` pojmenuje chybějící proměnnou, validuje URL, timeout, rate limit a normalizuje origins; `index.mjs` validuje `PORT` a varuje před non-loopback HTTP. |
+| C2 | Ask tlačítko je mimo manuální režim disabled, historie je v manuálním režimu skrytá a blokované přepnutí režimu má vysvětlení. |
+| D1 | `SECURITY.md` rozlišuje serverovou persistenci a klientské `localStorage`/in-memory údaje. |
+| D2 | `app.json` uvádí `["en", "cs"]`. |
+| D3 | `docs/README.md` je rozcestník dokumentace. |
+
+Co zůstává neověřené: skutečný hardware G2, lock-screen chování, kompatibilita živého Beast API a kvalita Whisperu na reálném zvuku. Tyto body nejdou vyřešit v tomto repu bez zařízení a přístupu k providerovi.
