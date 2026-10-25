@@ -19,7 +19,10 @@ Run the same checks as CI before opening a pull request:
 ```sh
 cd beast-g2
 npm test          # node:test suite
+npm run lint      # ESLint
+npm run format:check
 npm run build     # tsc --noEmit && vite build
+npm run test:coverage  # Node 22; enforces coverage thresholds
 ```
 
 `npm run pack` and `npm run pack:device` additionally refuse a manifest whose network whitelist still points at a reserved example host, is not HTTPS, or carries credentials. To test packaging, pass a real origin:
@@ -42,7 +45,7 @@ npm run pack:device -- https://your-beast-host/v1
 
 - TypeScript is strict; keep it that way and avoid `any`.
 - `server/` stays dependency-free: Node built-ins and local modules only.
-- Client code must not read provider keys. Only non-secret origins and the language are persisted; tokens stay in memory.
+- Client code must not read provider keys. Only non-secret settings (gateway origin, language, model names and optional vocabulary) are persisted; tokens stay in memory.
 - Diagnostics must never contain tokens, transcripts, audio, URLs or headers.
 - Code comments and English documentation are in English. `docs/` analysis notes are in Czech.
 

@@ -39,7 +39,7 @@ This repository contains no credentials. Provider keys stay in the gateway envir
 
 ## Known limitations
 
-This is a prototype, not a hosted service. There is no multi-user isolation, no persistence and no audit trail. Continuous background listening, lock-screen survival and hardware timing are unverified; see [docs/REVIEW.md](beast-g2/docs/REVIEW.md) for the open findings.
+This is a prototype, not a hosted service. There is no multi-user isolation, no server-side persistence and no audit trail. The browser keeps non-secret settings in localStorage; the gateway token, diagnostics ring and hint history live in memory only, so a reload clears everything except the saved settings. Continuous background listening, lock-screen survival and hardware timing are unverified; see [docs/REVIEW.md](beast-g2/docs/REVIEW.md) for the open findings.
 
 ## Automated analysis
 

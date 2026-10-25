@@ -37,7 +37,7 @@ Open http://localhost:5173, select **Use local demo**, **Test gateway**, then as
 
 Copy `.env.example` to `.env` and fill in the provider endpoints, provider key and a random gateway token of at least 16 characters. Set `ALLOWED_ORIGINS` to the actual client origins, then run `npm run gateway`.
 
-Never put credentials in source files, frontend `VITE_*` variables, the manifest or the `.ehpk`. The phone receives only a gateway token entered at runtime; the frontend keeps it in memory and saves only gateway origin and language as preferences. The gateway does not persist recordings or conversations. Use HTTPS for deployment.
+Never put credentials in source files, frontend `VITE_*` variables, the manifest or the `.ehpk`. The phone receives only a gateway token entered at runtime; the frontend keeps it in memory and saves only non-secret settings (gateway origin, language, model names and optional vocabulary) as preferences. The gateway does not persist recordings or conversations. Use HTTPS for deployment.
 
 ### Build for the glasses
 
@@ -80,7 +80,7 @@ This repository contains no credentials. Provider keys stay in the gateway envir
 
 - [CONTRIBUTING.md](CONTRIBUTING.md): setup, checks and pull request expectations
 - [CHANGELOG.md](CHANGELOG.md): release notes and unreleased changes
-- CI runs `npm ci`, `npm test` and `npm run build` on Node 20.18 and 22, and fails when secrets or build artifacts are tracked
+- CI runs tests and build on Node 20.18 and 22, then lint, formatting, `npm audit --omit=dev` and coverage thresholds on Node 22; it fails when secrets or build artifacts are tracked
 - `npm run pack` and `npm run pack:device` refuse a manifest that still points at a reserved example host
 
 ## Attribution

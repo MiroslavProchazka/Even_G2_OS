@@ -12,10 +12,29 @@ All notable changes to this repository are documented here. The format follows [
 - Manifest guard: `npm run pack` and `npm run pack:device` refuse reserved example hosts, non-HTTPS entries and URLs with credentials or query strings.
 - `SECURITY.md`, `CONTRIBUTING.md`, `CHANGELOG.md`, `THIRD-PARTY-NOTICES.md`, `.editorconfig` and `beast-g2/.nvmrc`.
 - Issue and pull request templates for bug reports, feature requests and review.
+- ESLint flat config, Prettier and CI jobs for lint, formatting, `npm audit --omit=dev` and coverage thresholds.
+- Shared `src/transport.ts` for stream line parsing and abort/timeout wiring, with its own tests.
+- Pure view rules in `src/view.ts` for busy state, history visibility, mode switching and connection messages.
+- Gateway rate limiting (`RATE_LIMIT`, `RATE_WINDOW_MS`) with `Retry-After`, and a 1 MiB cap on STT provider responses.
+- `docs/README.md` as an index of architecture, review, audit, deployment and handoff notes.
 
 ### Changed
 
 - Root `README.md` rewritten as a project overview. The client keeps its own release notes.
+- `app.json` declares English and Czech (`["en", "cs"]`).
+- CI actions are pinned to commit SHAs, and the client build is checked by ESLint and Prettier.
+- `SECURITY.md` now states exactly which client data is kept in memory and which settings are saved.
+
+### Fixed
+
+- Continuous mode no longer stalls when the glasses accept a hint but never acknowledge it: an acknowledgement deadline drops the hint and advances the queue, and a display failure pauses listening.
+- Live STT responses are read through a bounded reader instead of `response.json()`, so an oversized provider body cannot exhaust gateway memory.
+- Chat and STT provider requests refuse redirects instead of following them.
+- Demo mode always uses the public demo token, even when `GATEWAY_TOKEN` is exported.
+- Diagnostics report the version and SDK version from `package.json` instead of a hard-coded `0.4.0` and `0.0.16`.
+- Gateway configuration names the missing variable and rejects non-HTTPS, malformed and path-bearing origins before listening.
+- The UI disables the ask button outside manual mode, hides hint history in manual mode, and explains why a mode switch is blocked.
+- The client warns when a gateway is configured over plain HTTP outside loopback.
 
 ## [0.5.0] - 2026-10-25
 
