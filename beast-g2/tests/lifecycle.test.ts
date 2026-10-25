@@ -211,7 +211,9 @@ test('SDK dispose records an unconfirmed microphone shutdown instead of claiming
   await new Promise((resolve) => setTimeout(resolve, 0))
   assert.ok(diagnostics.snapshot().some((event) => event.event === 'dispose.stop_failed' && event.level === 'error'))
 })
-test('native timeout releases caller but never overlaps late start with queued stop', async () => {
+test('native timeout poisons the session and never overlaps late start with queued stop', async () => {
+  const { diagnostics } = await import('../src/diagnostics')
+  diagnostics.clear()
   const opening = deferred<boolean>()
   const calls: boolean[] = []
   const connection = await attachEven(
@@ -233,13 +235,16 @@ test('native timeout releases caller but never overlaps late start with queued s
     15
   )
   await assert.rejects(connection.audio.start(), { name: 'TimeoutError' })
-  await assert.rejects(connection.audio.stop(), { name: 'TimeoutError' })
+  await assert.rejects(connection.audio.stop(), /unresponsive/)
+  assert.deepEqual(calls, [true])
+  await assert.rejects(connection.audio.start(), /unresponsive/)
   assert.deepEqual(calls, [true])
   opening.resolve(true)
   await new Promise((resolve) => setImmediate(resolve))
-  assert.deepEqual(calls, [true, false])
-  await connection.audio.stop()
+  assert.deepEqual(calls, [true])
   connection.dispose()
+  await new Promise((resolve) => setImmediate(resolve))
+  assert.ok(diagnostics.snapshot().some((event) => event.event === 'session.unresponsive' && event.level === 'error'))
 })
 test('hung display reports timeout once and suppresses further writes including late settlement', async () => {
   const { LatestDisplay } = await import('../src/display')

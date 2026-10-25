@@ -41,6 +41,7 @@ const events = new Set([
   'answer.expired',
   'answer.dropped',
   'segment.failed',
+  'session.unresponsive',
   'dispose.stop_failed'
 ])
 const categories = new Set([

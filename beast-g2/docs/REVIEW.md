@@ -8,7 +8,7 @@ Průběžný přepis, finalizace po 2 s ticha a automatické desetisekundové hi
 
 ## Stav první opravné iterace po PR #4
 
-- R1 částečně opraveno: mikrofonní operace vrátí callerovi timeout po 8 s, ale podkladová fronta zůstává serializovaná. Controller zachová neznámý stav a vyžaduje úspěšnou explicitní pauzu před novým startem. Pozdní start následovaný stopem je pokryt testem. Display po timeoutu zavře svou frontu a vyžádá znovuotevření pluginu. Timeout nezaručuje fyzické vypnutí mikrofonu. Čekání na bridge/startup stránku a plná obnova session zůstávají otevřené.
+- R1 opraveno na úrovni SDK fronty: po timeoutu se session označí jako unresponsive, všechny další operace (start, stop, write, exit) jsou odmítnuty bez dalšího nativního volání a diagnostika zapíše `session.unresponsive`. Tím se zabrání tichému zaseknutí i souběhu s nezodpovězeným voláním. Plná obnova session bez znovuotevření pluginu zůstává otevřená; timeout nadále nezaručuje fyzické vypnutí mikrofonu. Čekání na bridge/startup stránku zůstává otevřené.
 - R3 částečně opraveno: koncové směrové „right“ a úvodní „Prosím tě / Please“ již neodmítají otázku; oddělený dovětek „, right?“ se dál filtruje. Sémantické posouzení a širší korpus zůstávají otevřené.
 - R5 opraveno pro současný prototyp: FIFO inbox tří čekajících odpovědí, explicitní Show next, počet nepřečtených, při overflow odpadne nejstarší čekající odpověď; její ztráta má vlastní čítač i diagnostickou událost. Právě čtená odpověď se nepřepisuje.
 - R2, R4, R6, R7 zůstávají otevřené. Níže je původní audit pro zachování kontextu.

@@ -20,12 +20,21 @@ export async function connectEven(initial: string, onGesture: (gesture: Gesture)
 export async function attachEven(bridge: Awaited<ReturnType<typeof waitForEvenAppBridge>>, initial: string, onGesture: (gesture: Gesture) => void, onPcm: (pcm: Uint8Array) => void, timeoutMs = 8000) {
   const rendered = new Map<number, string>()
   let disposed = false
+  let poisoned = false
   let capture = false,
     operations = Promise.resolve()
+  const unresponsive = () => new Error('G2 session is unresponsive. Reopen the plugin to reconnect.')
   const serialize = (operation: () => Promise<void>) => {
+    if (poisoned) return Promise.reject(unresponsive())
     const result = operations.then(operation)
     operations = result.catch(() => {})
-    return deadline(result, timeoutMs)
+    return deadline(result, timeoutMs).catch((error) => {
+      if (error instanceof DOMException && error.name === 'TimeoutError') {
+        poisoned = true
+        diagnostics.record('sdk', 'session.unresponsive', { phase: 'unknown' }, 'error')
+      }
+      throw error
+    })
   }
   const unsubscribe = bridge.onEvenHubEvent((event) => {
     if (disposed) return
@@ -92,6 +101,10 @@ export async function attachEven(bridge: Awaited<ReturnType<typeof waitForEvenAp
           try {
             if (!(await bridge.audioControl(true, AudioInputSource.Glasses))) throw new Error('G2 microphone unavailable. Check permission and connection.')
           } catch (error) {
+            if (poisoned || (error instanceof DOMException && error.name === 'TimeoutError')) {
+              capture = true
+              throw error
+            }
             try {
               if (await bridge.audioControl(false)) capture = false
             } catch {
@@ -109,6 +122,7 @@ export async function attachEven(bridge: Awaited<ReturnType<typeof waitForEvenAp
     },
     async write(content: string, left = '', right = '') {
       if (disposed) return
+      if (poisoned) throw unresponsive()
       for (const [containerID, containerName, text] of [
         [2, 'status', left],
         [3, 'battery', right],
@@ -120,6 +134,7 @@ export async function attachEven(bridge: Awaited<ReturnType<typeof waitForEvenAp
       }
     },
     exit: async () => {
+      if (poisoned) throw unresponsive()
       if (!(await deadline(bridge.shutDownPageContainer(1), timeoutMs))) throw new Error('G2 exit rejected.')
     },
     dispose: () => {

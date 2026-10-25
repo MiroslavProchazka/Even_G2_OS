@@ -35,6 +35,7 @@ All notable changes to this repository are documented here. The format follows [
 - Gateway configuration names the missing variable and rejects non-HTTPS, malformed and path-bearing origins before listening.
 - The UI disables the ask button outside manual mode, hides hint history in manual mode, and explains why a mode switch is blocked.
 - The client warns when a gateway is configured over plain HTTP outside loopback.
+- A native SDK timeout now marks the session unresponsive: later microphone, display and exit operations fail fast with a clear error instead of waiting behind an unresolved native call. Late native resolution cannot start a queued stop.
 
 ## [0.5.0] - 2026-10-25
 
