@@ -1,0 +1,59 @@
+name: Feature request
+description: Suggest a change in behaviour, hardware support or workflow.
+title: "[Feature] "
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: What does not work today, or what costs you time during a real conversation?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed change
+      description: Describe the behaviour you want, not the implementation.
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: Existing modes, another client or a manual workaround.
+    validations:
+      required: false
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - Glasses display
+        - Microphone and VAD
+        - Transcription
+        - Chat and prompts
+        - Web search
+        - Gateway
+        - Diagnostics
+        - Build and packaging
+    validations:
+      required: true
+  - type: checkboxes
+    id: constraints
+    attributes:
+      label: Constraints this change would touch
+      description: Select every constraint that applies, so the design discussion starts with the real limits.
+      options:
+        - label: Background listening with a locked phone.
+        - label: A new Even Hub permission or manifest change.
+        - label: A change in the gateway contract or the provider request.
+        - label: Storing conversation, audio or notes on disk.
+        - label: A new runtime dependency.
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Before submitting
+      options:
+        - label: I searched existing issues and docs/BACKLOG.md.
+          required: true

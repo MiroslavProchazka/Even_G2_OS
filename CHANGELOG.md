@@ -11,6 +11,7 @@ All notable changes to this repository are documented here. The format follows [
 - Repository hygiene job that fails when `.env`, `app.device.json` or an `.ehpk` package is tracked.
 - Manifest guard: `npm run pack` and `npm run pack:device` refuse reserved example hosts, non-HTTPS entries and URLs with credentials or query strings.
 - `SECURITY.md`, `CONTRIBUTING.md`, `CHANGELOG.md`, `THIRD-PARTY-NOTICES.md`, `.editorconfig` and `beast-g2/.nvmrc`.
+- Issue and pull request templates for bug reports, feature requests and review.
 
 ### Changed
 

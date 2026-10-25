@@ -1,0 +1,83 @@
+name: Bug report
+description: Something in the plugin, the gateway or the build does not behave as documented.
+title: "[Bug] "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Do not paste a gateway token, an API key, raw audio, a transcript or personal notes. The diagnostics export contains metadata only, but remove the gateway URL and any names before pasting.
+        Security reports do not belong here. Follow [SECURITY.md](https://github.com/MiroslavProchazka/Even_G2_OS/blob/main/SECURITY.md).
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened
+      description: What you did, what you expected and what happened instead.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Open the plugin on the glasses
+        2. Tap once and say a question
+        3. The display stays on READY
+    validations:
+      required: true
+  - type: dropdown
+    id: mode
+    attributes:
+      label: Mode
+      options:
+        - Manual, tap to ask
+        - Continuous G2
+        - Continuous demo
+        - Text question only
+    validations:
+      required: true
+  - type: dropdown
+    id: transport
+    attributes:
+      label: Connection
+      options:
+        - Direct Beast API
+        - Custom gateway
+        - Local demo
+    validations:
+      required: true
+  - type: input
+    id: versions
+    attributes:
+      label: Versions
+      description: Plugin version, Even App version, phone model, Android version and glasses firmware.
+      placeholder: 0.5.0, Even App 2.2.10, Pixel 8, Android 15
+    validations:
+      required: true
+  - type: textarea
+    id: diagnostics
+    attributes:
+      label: Diagnostics export
+      description: Paste the JSON from Diagnostics, Export diagnostic JSON. Remove the gateway URL and any names first.
+      render: json
+    validations:
+      required: false
+  - type: textarea
+    id: logs
+    attributes:
+      label: Gateway log
+      description: JSON lines from the gateway stdout. Remove the request IDs if you prefer.
+      render: shell
+    validations:
+      required: false
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Before submitting
+      options:
+        - label: I searched existing issues.
+          required: true
+        - label: I removed tokens, API keys, raw audio and personal transcripts.
+          required: true
+        - label: This is not a security report.
+          required: true

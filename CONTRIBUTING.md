@@ -30,6 +30,7 @@ npm run pack:device -- https://your-beast-host/v1
 
 ## Pull requests
 
+- Open an issue with the feature request template before a large change. Small fixes can go straight to a pull request.
 - Keep one topic per pull request and use an imperative subject line.
 - State what you verified and what stays unverified. A green build, a passing test or an `.ehpk` is not evidence of glasses or provider behaviour.
 - Add a regression test for every behavioural fix, in the existing `node:test` suites.
@@ -47,4 +48,4 @@ npm run pack:device -- https://your-beast-host/v1
 
 ## Reporting bugs
 
-Open an issue with the diagnostics JSON exported from the phone, with tokens, URLs and conversation content removed. Describe whether the failure happened in demo mode, gateway mode or direct Beast mode, and whether it involved real glasses.
+Open an issue with the bug report template and attach the diagnostics JSON exported from the phone, with tokens, URLs and conversation content removed. Describe whether the failure happened in demo mode, gateway mode or direct Beast mode, and whether it involved real glasses. Security reports do not belong in a public issue; follow `SECURITY.md`.
