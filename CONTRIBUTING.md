@@ -34,6 +34,7 @@ npm run pack:device -- https://your-beast-host/v1
 - State what you verified and what stays unverified. A green build, a passing test or an `.ehpk` is not evidence of glasses or provider behaviour.
 - Add a regression test for every behavioural fix, in the existing `node:test` suites.
 - Update `CHANGELOG.md` under `Unreleased`.
+- Fix or justify new CodeQL alerts. An alert that cannot be reached in this prototype still needs a short note.
 - Do not commit `.env`, `app.device.json`, `dist/`, `node_modules/` or an `.ehpk`. CI fails if a secret or build artifact is tracked.
 
 ## Code conventions

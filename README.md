@@ -1,6 +1,7 @@
 # Even_G2_OS
 
 [![CI](https://github.com/MiroslavProchazka/Even_G2_OS/actions/workflows/ci.yml/badge.svg)](https://github.com/MiroslavProchazka/Even_G2_OS/actions/workflows/ci.yml)
+[![CodeQL](https://github.com/MiroslavProchazka/Even_G2_OS/actions/workflows/codeql.yml/badge.svg)](https://github.com/MiroslavProchazka/Even_G2_OS/actions/workflows/codeql.yml)
 
 Personal playground for building on [Even Realities G2](https://www.evenrealities.com/) smart glasses. Each subproject is self-contained, runs locally, and documents what is verified versus what still needs testing on real hardware.
 

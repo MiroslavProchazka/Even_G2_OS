@@ -40,3 +40,7 @@ This repository contains no credentials. Provider keys stay in the gateway envir
 ## Known limitations
 
 This is a prototype, not a hosted service. There is no multi-user isolation, no persistence and no audit trail. Continuous background listening, lock-screen survival and hardware timing are unverified; see [docs/REVIEW.md](beast-g2/docs/REVIEW.md) for the open findings.
+
+## Automated analysis
+
+CodeQL runs for JavaScript and TypeScript on every push to `main`, on pull requests and on a weekly schedule. Fix or justify new alerts before a release; an alert that is not reachable in this prototype still needs a short note in the pull request.
