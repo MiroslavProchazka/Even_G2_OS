@@ -10,11 +10,11 @@ const qr = require('qr-image')
 const addresses = Object.entries(networkInterfaces())
   .filter(([name]) => !/^(utun|tun|tap|awdl|llw|lo)/.test(name))
   .flatMap(([, entries]) => entries ?? [])
-  .filter(entry => entry.family === 'IPv4' && !entry.internal)
+  .filter((entry) => entry.family === 'IPv4' && !entry.internal)
 const supplied = process.argv[2]
 if (!supplied && addresses.length !== 1) {
   console.error('Pass the Mac LAN URL explicitly: npm run qr -- http://<Mac-IP>:5173')
-  console.error('Available addresses:', addresses.map(entry => entry.address).join(', ') || 'none')
+  console.error('Available addresses:', addresses.map((entry) => entry.address).join(', ') || 'none')
   process.exit(1)
 }
 const url = new URL(supplied ?? `http://${addresses[0].address}:5173`)
