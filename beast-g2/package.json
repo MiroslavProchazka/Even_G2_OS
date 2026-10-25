@@ -1,0 +1,51 @@
+{
+  "name": "beast-g2",
+  "version": "0.5.0",
+  "description": "Even Realities G2 voice client for a self-hosted Beast service: glasses microphone, Whisper transcription, chat model and glasses display.",
+  "private": true,
+  "type": "module",
+  "license": "MIT",
+  "author": "Miroslav Procházka (Prochmi99)",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/MiroslavProchazka/Even_G2_OS.git",
+    "directory": "beast-g2"
+  },
+  "homepage": "https://github.com/MiroslavProchazka/Even_G2_OS/tree/main/beast-g2#readme",
+  "bugs": {
+    "url": "https://github.com/MiroslavProchazka/Even_G2_OS/issues"
+  },
+  "keywords": [
+    "even-realities",
+    "g2",
+    "smart-glasses",
+    "speech-to-text",
+    "whisper"
+  ],
+  "scripts": {
+    "dev": "vite --host 0.0.0.0",
+    "build": "tsc --noEmit && vite build",
+    "typecheck": "tsc --noEmit",
+    "test": "node --import tsx --test tests/*.test.ts tests/*.test.mjs",
+    "gateway": "node --env-file=.env server/index.mjs",
+    "gateway:demo": "node server/index.mjs --demo",
+    "pack": "node scripts/check-manifest.mjs app.json && npm run build && evenhub pack app.json dist --sdk-ver 0.0.16",
+    "qr": "node scripts/device-qr.mjs",
+    "simulate": "node node_modules/@evenrealities/evenhub-simulator/bin/index.js http://localhost:5173 --automation-port 9899",
+    "demo:continuous": "node --import tsx scripts/continuous-demo.ts",
+    "pack:device": "node scripts/pack-device.mjs"
+  },
+  "engines": {
+    "node": ">=20.18.0"
+  },
+  "dependencies": {
+    "@evenrealities/even_hub_sdk": "0.0.16"
+  },
+  "devDependencies": {
+    "@evenrealities/evenhub-cli": "0.1.14",
+    "@evenrealities/evenhub-simulator": "0.9.5",
+    "tsx": "^4.23.15",
+    "typescript": "^5.7.0",
+    "vite": "^6.4.4"
+  }
+}

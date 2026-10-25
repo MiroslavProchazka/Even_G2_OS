@@ -1,0 +1,25 @@
+{
+  "package_id": "com.prochmi.beastg2",
+  "edition": "202601",
+  "name": "Beast G2",
+  "version": "0.5.0",
+  "min_app_version": "2.2.10",
+  "min_sdk_version": "0.0.16",
+  "entrypoint": "index.html",
+  "supported_languages": [
+    "en"
+  ],
+  "permissions": [
+    {
+      "name": "g2-microphone",
+      "desc": "Records your spoken question when you start listening."
+    },
+    {
+      "name": "network",
+      "desc": "Sends your question to your configured Beast gateway.",
+      "whitelist": [
+        "https://gateway.example.com"
+      ]
+    }
+  ]
+}

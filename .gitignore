@@ -1,0 +1,56 @@
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+
+# Editors
+.idea/
+.vscode/*
+!.vscode/extensions.json
+*.swp
+*.swo
+*~
+
+# Node
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+.npm/
+.pnpm-store/
+.yarn/
+
+# Build output
+dist/
+build/
+*.tsbuildinfo
+
+# Even Realities device packages and build artifacts
+*.ehpk
+*.ehpk.sha256
+app.device.json
+
+# Environment and secrets
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# Local dev scratch: test logs, screenshots, probe scripts
+.dev/
+*.log
+
+# Python scratch tooling
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# Coverage and test output
+coverage/
+.nyc_output/
+test-results/
+playwright-report/
