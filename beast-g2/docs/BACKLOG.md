@@ -18,6 +18,7 @@ Produktový rámec a priority z porovnání s IRIS jsou v [IRIS-COMPARISON.md](I
 - Zachovat přepis a dokončené hinty po přerušení nebo reloadu; nabídnout Resume / End session.
 - Navrhnout opt-in lokální ukládání, omezení velikosti a doby uchování, export a smazání. Raw audio neukládat automaticky.
 - Přijetí: restart aplikace obnoví správnou relaci bez duplicitních odpovědí; smazání odstraní i persistentní kopii. Mikrofon se po obnově nespustí bez vědomého spuštění uživatelem.
+- Stav: I1 ukládá relace, segmenty, finální přepis, revize, mezery a export na serveru; klientské Resume/End UI a ověření na skutečném G2 zůstávají.
 - Samostatně ověřit běh se zamčeným telefonem; persistence sama nezajišťuje background listening.
 
 ### B3 · P2 · Méně / více nápověd během rozhovoru
@@ -32,7 +33,7 @@ Produktový rámec a priority z porovnání s IRIS jsou v [IRIS-COMPARISON.md](I
 - Na vyžádání vytvořit rozhodnutí, úkoly, otevřené otázky a krátký souhrn přes Beast.
 - U úkolů uvádět vlastníka/termín pouze tehdy, když zazněl; chybějící údaje označit. Umožnit dohledat podklad v přepisu a opravit výsledek.
 - Přijetí: exportovatelný souhrn; žádné automatické rozesílání nebo zakládání úkolů v externích službách.
-- Závislost: definovat uchování úplného přepisu relace. Současná historie 20 odpovědí ani šest zpráv kontextu nejsou úplný záznam schůzky.
+- Závislost: I1 ukládá úplný přepis relace; souhrn nad ním zbývá. Současná historie 20 odpovědí ani šest zpráv kontextu nejsou úplný záznam schůzky.
 
 ### B5 · P2 · Prověřit IRIS → Beast / Hermes jako alternativní klient
 

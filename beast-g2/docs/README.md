@@ -14,6 +14,7 @@ next steps are in `BACKLOG.md`; product direction inspired by IRIS is in
 | [IRIS-COMPARISON.md](IRIS-COMPARISON.md) | Product direction inspired by IRIS, P1/P2 proposals and what not to copy |
 | [CONTINUOUS.md](CONTINUOUS.md) | Continuous listening and hint queue |
 | [CONVERSATION.md](CONVERSATION.md) | Conversation context and phone history |
+| [SESSIONS.md](SESSIONS.md) | Stored sessions, WAV import, retention, export and deletion |
 | [SPEECH-AND-WEB.md](SPEECH-AND-WEB.md) | Speech quality and optional web evidence |
 | [WEB.md](WEB.md) | Web search contract and privacy boundaries |
 | [DEPLOYMENT.md](DEPLOYMENT.md) | Personal gateway deployment checklist |

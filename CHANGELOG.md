@@ -18,6 +18,11 @@ All notable changes to this repository are documented here. The format follows [
 - Gateway rate limiting (`RATE_LIMIT`, `RATE_WINDOW_MS`) with `Retry-After`, and a 1 MiB cap on STT provider responses.
 - `docs/README.md` as an index of architecture, review, audit, deployment and handoff notes.
 - `docs/IRIS-COMPARISON.md` with product direction, P1/P2 proposals, open questions and explicit non-goals, linked from the docs index and backlog.
+- Opt-in SQLite session store (`SESSION_DATA_DIR`) with sessions, segments, final transcripts, revisions, coverage gaps and transcription jobs.
+- Session API for create/list/detail/start/pause/resume/end, segment upload, WAV import, gap reporting, turn corrections, JSON/Markdown export and deletion.
+- Background transcription worker with bounded retries, restart recovery, writer leases, audio quotas, disk reserve and audio deletion after transcription or retention expiry.
+- `npm run session:import` CLI for importing a WAV file into a stored session and writing its export.
+- `docs/SESSIONS.md` with the session API, limits, retention and failure behaviour.
 
 ### Changed
 
@@ -25,6 +30,7 @@ All notable changes to this repository are documented here. The format follows [
 - `app.json` declares English and Czech (`["en", "cs"]`).
 - CI actions are pinned to commit SHAs, and the client build is checked by ESLint and Prettier.
 - `SECURITY.md` now states exactly which client data is kept in memory and which settings are saved.
+- The gateway now depends on `better-sqlite3` for the opt-in session store; chat and STT request handling is unchanged.
 
 ### Fixed
 

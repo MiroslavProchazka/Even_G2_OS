@@ -1,16 +1,14 @@
 import { searchWeb } from './web.mjs'
 import http from 'node:http'
+import os from 'node:os'
+import path from 'node:path'
 import { timingSafeEqual, randomUUID } from 'node:crypto'
+import { ApiError } from './errors.mjs'
+import { readBody, sendJson } from './http-util.mjs'
+import { routeSessions } from './sessions/http.mjs'
+import { transcribeAudio } from './stt.mjs'
 
 const MAX_AUDIO = 960044
-const MAX_PROVIDER_JSON = 1048576
-class ApiError extends Error {
-  constructor(status, code, message) {
-    super(message)
-    this.status = status
-    this.code = code
-  }
-}
 function parseOrigins(value) {
   return value
     .split(',')
@@ -32,6 +30,12 @@ export function loadConfig(env = process.env) {
   // Demo always uses the public demo token, so an exported GATEWAY_TOKEN cannot break the demo button.
   const token = demo ? 'local-demo-token-only' : env.GATEWAY_TOKEN || ''
   if (token.length < 16) throw new Error('Set GATEWAY_TOKEN to at least 16 characters.')
+  const dataDir = path.resolve(env.SESSION_DATA_DIR || path.join(os.homedir(), '.local', 'share', 'beast-g2'))
+  const integer = (name, value, min, max) => {
+    const number = Number(value)
+    if (!Number.isInteger(number) || number < min || number > max) throw new Error(`Invalid ${name}`)
+    return number
+  }
   const config = {
     demo,
     token,
@@ -45,7 +49,22 @@ export function loadConfig(env = process.env) {
     sttModel: env.BEAST_STT_MODEL || 'whisper-live',
     timeout: Number(env.UPSTREAM_TIMEOUT_MS || 90000),
     rateLimit: Number(env.RATE_LIMIT || 30),
-    rateWindowMs: Number(env.RATE_WINDOW_MS || 60000)
+    rateWindowMs: Number(env.RATE_WINDOW_MS || 60000),
+    dataDir,
+    databasePath: env.SESSION_DB_PATH ? path.resolve(env.SESSION_DB_PATH) : path.join(dataDir, 'sessions.sqlite'),
+    sessionRetentionDays: integer('SESSION_RETENTION_DAYS', env.SESSION_RETENTION_DAYS ?? 30, 1, 365),
+    audioRetentionHours: integer('AUDIO_RETENTION_HOURS', env.AUDIO_RETENTION_HOURS ?? 24, 1, 168),
+    audioQuotaBytes: integer('AUDIO_QUOTA_BYTES', env.AUDIO_QUOTA_BYTES ?? 536870912, 1048576, 10737418240),
+    maxSessionMs: integer('MAX_SESSION_MS', env.MAX_SESSION_MS ?? 3600000, 60000, 21600000),
+    maxTranscriptChars: integer('MAX_TRANSCRIPT_CHARS', env.MAX_TRANSCRIPT_CHARS ?? 100000, 1000, 1000000),
+    maxImportBytes: integer('MAX_IMPORT_BYTES', env.MAX_IMPORT_BYTES ?? 134217728, 1048576, 1073741824),
+    segmentMs: integer('SEGMENT_MS', env.SEGMENT_MS ?? 30000, 5000, 120000),
+    workerPollMs: integer('WORKER_POLL_MS', env.WORKER_POLL_MS ?? 500, 50, 60000),
+    workerMaxAttempts: integer('WORKER_MAX_ATTEMPTS', env.WORKER_MAX_ATTEMPTS ?? 3, 1, 10),
+    workerBackoffMs: integer('WORKER_BACKOFF_MS', env.WORKER_BACKOFF_MS ?? 1000, 0, 60000),
+    workerTimeoutMs: integer('WORKER_TIMEOUT_MS', env.WORKER_TIMEOUT_MS ?? 90000, 1000, 300000),
+    writerLeaseMs: integer('WRITER_LEASE_MS', env.WRITER_LEASE_MS ?? 60000, 5000, 600000),
+    diskReserveBytes: integer('DISK_RESERVE_BYTES', env.DISK_RESERVE_BYTES ?? 67108864, 1048576, 1073741824)
   }
   if (!Number.isFinite(config.timeout) || config.timeout < 1000 || config.timeout > 300000) throw new Error('Invalid UPSTREAM_TIMEOUT_MS')
   if (!Number.isInteger(config.rateLimit) || config.rateLimit < 1 || config.rateLimit > 1000) throw new Error('Invalid RATE_LIMIT')
@@ -74,14 +93,7 @@ function authorized(actual, expected) {
   return a.length === b.length && timingSafeEqual(a, b)
 }
 async function body(req, limit) {
-  const chunks = []
-  let size = 0
-  for await (const chunk of req) {
-    size += chunk.length
-    if (size > limit) throw new ApiError(413, 'too_large', 'Request exceeds size limit.')
-    chunks.push(chunk)
-  }
-  return Buffer.concat(chunks)
+  return readBody(req, limit)
 }
 function wavProblem(b) {
   if (b.length < 46) return 'Audio is too short.'
@@ -174,29 +186,6 @@ export async function* readSSE(stream) {
     reader.releaseLock()
   }
 }
-function json(res, status, payload) {
-  res.writeHead(status, { 'Content-Type': 'application/json; charset=utf-8' })
-  res.end(JSON.stringify(payload))
-}
-async function readJson(response, limit) {
-  const reader = response.body?.getReader()
-  if (!reader) throw new ApiError(502, 'empty_body', 'Provider returned an empty body.')
-  let size = 0
-  const chunks = []
-  try {
-    while (true) {
-      const { value, done } = await reader.read()
-      if (done) break
-      size += value.byteLength
-      if (size > limit) throw new ApiError(502, 'invalid_transcription', 'Provider response exceeds the size limit.')
-      chunks.push(value)
-    }
-  } finally {
-    await reader.cancel().catch(() => {})
-    reader.releaseLock()
-  }
-  return Buffer.concat(chunks.map((chunk) => Buffer.from(chunk)))
-}
 async function sendEvent(res, controller, payload) {
   if (controller.signal.aborted || res.destroyed) throw new Error('Connection closed')
   if (res.write(`${JSON.stringify(payload)}\n`)) return
@@ -267,32 +256,52 @@ export function createGateway(config, fetchImpl = fetch) {
       }
     })
     const origin = req.headers.origin
-    if (origin && !config.origins.includes(origin)) return json(res, 403, { error: 'origin_denied', message: 'Origin is not in ALLOWED_ORIGINS.', requestId: id })
+    if (origin && !config.origins.includes(origin)) return sendJson(res, 403, { error: 'origin_denied', message: 'Origin is not in ALLOWED_ORIGINS.', requestId: id })
     if (origin) {
       res.setHeader('Access-Control-Allow-Origin', origin)
       res.setHeader('Vary', 'Origin')
       res.setHeader('Access-Control-Expose-Headers', 'X-Request-Id')
     }
     if (req.method === 'OPTIONS') {
-      res.writeHead(204, { 'Access-Control-Allow-Methods': 'GET, POST, OPTIONS', 'Access-Control-Allow-Headers': 'Authorization, Content-Type' })
+      res.writeHead(204, {
+        'Access-Control-Allow-Methods': 'GET, POST, PATCH, DELETE, OPTIONS',
+        'Access-Control-Allow-Headers': 'Authorization, Content-Type, X-Writer-Id, X-Segment-Id, X-Sequence, X-Start-Ms, X-End-Ms'
+      })
       return res.end()
     }
-    if (!authorized(req.headers.authorization, config.token)) return json(res, 401, { error: 'unauthorized', message: 'Invalid gateway token.', requestId: id })
+    if (!authorized(req.headers.authorization, config.token)) return sendJson(res, 401, { error: 'unauthorized', message: 'Invalid gateway token.', requestId: id })
     if (!allowRequest()) {
       res.setHeader('Retry-After', String(Math.ceil(rateWindowMs / 1000)))
-      return json(res, 429, { error: 'rate_limited', message: 'Too many requests. Retry later.', requestId: id })
+      return sendJson(res, 429, { error: 'rate_limited', message: 'Too many requests. Retry later.', requestId: id })
     }
     const route = new URL(req.url, 'http://localhost').pathname
     if (req.method === 'GET' && route === '/api/health')
-      return json(res, 200, {
+      return sendJson(res, 200, {
         ok: true,
         mode: config.demo ? 'demo' : 'live',
         models: { chat: config.chatModel, stt: config.sttModel },
         webSearch: !config.demo && Boolean(config.searchKey),
+        sessions: Boolean(config.sessions),
         requestId: id
       })
-    if (req.method !== 'POST' || !['/api/transcribe', '/api/chat'].includes(route)) return json(res, 404, { error: 'not_found', requestId: id })
-    if (active >= 2) return json(res, 429, { error: 'busy', message: 'Gateway is busy. Try again shortly.', requestId: id })
+    if (route === '/api/sessions' || route.startsWith('/api/sessions/')) {
+      if (!config.sessions) return sendJson(res, 404, { error: 'sessions_disabled', message: 'Stored sessions are not enabled.', requestId: id })
+      try {
+        return await routeSessions({ req, res, route, service: config.sessions, requestId: id })
+      } catch (error) {
+        if (res.destroyed) return
+        const status = error instanceof ApiError ? error.status : 500
+        const payload = {
+          error: error instanceof ApiError ? error.code : 'internal_error',
+          message: error instanceof ApiError ? error.message : 'Request failed.',
+          requestId: id
+        }
+        if (!res.headersSent) return sendJson(res, status, payload)
+        return res.end()
+      }
+    }
+    if (req.method !== 'POST' || !['/api/transcribe', '/api/chat'].includes(route)) return sendJson(res, 404, { error: 'not_found', requestId: id })
+    if (active >= 2) return sendJson(res, 429, { error: 'busy', message: 'Gateway is busy. Try again shortly.', requestId: id })
     active++
     const controller = new AbortController(),
       timer = setTimeout(() => {
@@ -307,22 +316,9 @@ export function createGateway(config, fetchImpl = fetch) {
         validateWav(audio)
         const language = new URL(req.url, 'http://localhost').searchParams.get('language') || 'cs'
         if (!['cs', 'en', 'auto'].includes(language)) throw new ApiError(400, 'invalid_language', 'Use cs, en or auto.')
-        if (config.demo) return json(res, 200, { text: 'Co umí aplikace Beast G2?', model: config.sttModel, demo: true, requestId: id })
-        const form = new FormData()
-        form.set('file', new Blob([audio], { type: 'audio/wav' }), 'question.wav')
-        form.set('model', config.sttModel)
-        form.set('response_format', 'json')
-        if (language !== 'auto') form.set('language', language)
-        const response = await upstream(fetchImpl, config.sttUrl, { method: 'POST', headers: { Authorization: `Bearer ${config.sttKey}` }, body: form, signal: controller.signal }, 'stt')
-        let result
-        try {
-          result = JSON.parse((await readJson(response, MAX_PROVIDER_JSON)).toString('utf8'))
-        } catch (error) {
-          if (error instanceof ApiError) throw error
-          throw new ApiError(502, 'invalid_transcription', 'Provider returned an invalid transcript.')
-        }
-        if (typeof result.text !== 'string' || result.text.length > 4000) throw new ApiError(502, 'invalid_transcription', 'Provider returned an invalid transcript.')
-        return json(res, 200, { text: result.text.trim(), model: config.sttModel, requestId: id })
+        if (config.demo) return sendJson(res, 200, { text: 'Co umí aplikace Beast G2?', model: config.sttModel, demo: true, requestId: id })
+        const text = await transcribeAudio(config, audio, { language, fetchImpl, signal: controller.signal })
+        return sendJson(res, 200, { text, model: config.sttModel, requestId: id })
       }
       if (!(req.headers['content-type'] || '').startsWith('application/json')) throw new ApiError(415, 'content_type', 'Use application/json.')
       let input
@@ -404,7 +400,7 @@ export function createGateway(config, fetchImpl = fetch) {
         requestId: id
       }
       if (res.headersSent) res.end(`${JSON.stringify({ type: 'error', ...payload })}\n`)
-      else json(res, status, payload)
+      else sendJson(res, status, payload)
     } finally {
       clearTimeout(timer)
       active--

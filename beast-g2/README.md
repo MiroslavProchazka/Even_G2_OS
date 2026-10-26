@@ -18,7 +18,7 @@ Validated locally: 43 tests and TypeScript/Vite build. Live provider DNS/network
 
 # Beast G2
 
-An early Even Realities G2 voice client for a self-hosted Beast service: glasses microphone → Whisper → chat model → glasses display. TypeScript/Vite frontend, a small dependency-free Node gateway, and a clearly marked local demo.
+An early Even Realities G2 voice client for a self-hosted Beast service: glasses microphone → Whisper → chat model → glasses display. TypeScript/Vite frontend, a small Node gateway, and a clearly marked local demo.
 
 **Status:** cloud-reviewed development build; see [verification and pending browser checks](docs/CLOUD-VERIFICATION.md). Live Beast API compatibility, real glasses capture, lock-screen survival and deployment are not yet verified. See [design](docs/ANALYSIS.md) and [cloud handoff](docs/HANDOFF.md).
 
@@ -41,9 +41,27 @@ Open http://localhost:5173, select **Use local demo**, **Test gateway**, then as
 
 Copy `.env.example` to `.env` and fill in the exact provider endpoints, provider key and a random gateway token of at least 16 characters. Set `ALLOWED_ORIGINS` to the actual client origins. Run `npm run gateway`. Defaults assume OpenAI-compatible multipart transcriptions and streaming chat completions; these assumptions must be confirmed against your Beast deployment. Model defaults are `whisper-live` and `beast/big`.
 
-Do not put credentials in source files, frontend `VITE_*` variables, the manifest or the `.ehpk`. The phone receives only a gateway token entered at runtime; the frontend keeps it in memory and saves only gateway origin and language as preferences. The gateway does not persist recordings or conversations. Use HTTPS for deployment; no deployment has been created.
+Do not put credentials in source files, frontend `VITE_*` variables, the manifest or the `.ehpk`. The phone receives only a gateway token entered at runtime; the frontend keeps it in memory and saves only gateway origin and language as preferences. The gateway keeps conversations in memory by default. The opt-in session store persists sessions and transcripts; audio is deleted after transcription or after 24 hours, and ended sessions expire after 30 days. Use HTTPS for deployment; no deployment has been created.
 
 For a phone dev test, explicitly bind the live gateway with `HOST=0.0.0.0`, allow the Vite LAN origin, and use the Mac's LAN address in the phone settings. Loopback on the phone points to the phone, not your Mac. The Mac must remain on for this local setup. A deployed gateway removes that dependency.
+
+## Stored sessions
+
+The gateway can keep sessions in SQLite and accept WAV imports. This is opt-in and
+uses the same session model as the planned G2 capture path. The API supports
+create/list/detail, start/pause/resume/end, segment upload, WAV import, coverage
+gaps, turn corrections, JSON/Markdown export and deletion. A background worker
+transcribes segments, retries transient failures and recovers unfinished jobs after a
+restart. Audio is deleted after transcription or after the audio retention window.
+
+```sh
+npm run gateway:demo
+npm run session:import -- recording.wav --demo --name "Monday call" --out monday-call.md
+```
+
+See [stored sessions](docs/SESSIONS.md) for the API, limits, retention and failure
+behaviour. Summaries, task extraction and next-conversation preparation are later
+phases.
 
 ## G2
 
@@ -64,7 +82,9 @@ Tap starts recording; tap again sends, with a 30-second recording limit. Double 
 - `src/api.ts`: gateway client and NDJSON stream handling
 - `src/display.ts`: pagination and coalesced serial display writes
 - `server/gateway.mjs`: authenticated CORS gateway, WAV validation, Whisper multipart and chat SSE normalization
-- `tests/`: audio, cancellation, display and gateway contract tests
+- `server/sessions/`: SQLite session store, WAV import, transcription worker and session HTTP routes
+- `scripts/session-import.mjs`: CLI import and export for a stored session
+- `tests/`: audio, cancellation, display, gateway contract and session fault tests
 
 The gateway buffers one utterance and uses REST for speech. It does not infer realtime support from the name `whisper-live`. Answer streaming is required by the initial chat adapter. Remote inference cancellation depends on provider behavior.
 

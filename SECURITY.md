@@ -21,6 +21,7 @@ In scope:
 - CORS origin allow-list, preflight handling and origin denial
 - request size, body limits, concurrency and timeout enforcement
 - WAV and multipart validation, NDJSON and SSE framing
+- stored-session access control, retention, deletion and audio cleanup
 - server-side request forgery or credential disclosure through configured provider URLs
 - diagnostics, logs or exports leaking tokens, transcripts, audio or URLs
 - secrets leaking into a packaged `.ehpk`
@@ -39,7 +40,7 @@ This repository contains no credentials. Provider keys stay in the gateway envir
 
 ## Known limitations
 
-This is a prototype, not a hosted service. There is no multi-user isolation, no server-side persistence and no audit trail. The browser keeps non-secret settings in localStorage; the gateway token, diagnostics ring and hint history live in memory only, so a reload clears everything except the saved settings. Continuous background listening, lock-screen survival and hardware timing are unverified; see [docs/REVIEW.md](beast-g2/docs/REVIEW.md) for the open findings.
+This is a prototype, not a hosted service. There is no multi-user isolation and no audit trail beyond transcript revisions. The browser keeps non-secret settings in localStorage; the gateway token, diagnostics ring and hint history live in memory only, so a reload clears everything except the saved settings. The opt-in session store persists sessions and transcripts under `SESSION_DATA_DIR`; audio is deleted after transcription or `AUDIO_RETENTION_HOURS`, and ended sessions after `SESSION_RETENTION_DAYS`. Deleting a session removes its rows, revisions and stored audio, but an export is a separate copy. Continuous background listening, lock-screen survival and hardware timing are unverified; see [docs/REVIEW.md](beast-g2/docs/REVIEW.md) for the open findings.
 
 ## Automated analysis
 

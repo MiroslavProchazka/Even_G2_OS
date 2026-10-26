@@ -16,3 +16,11 @@ Next work:
 Unverified external contracts: actual Beast transcription URL and protocol; actual chat URL, models and streaming; provider CORS and phone network/VPN reachability; hardware PCM timing; Czech font glyphs; battery/reconnect/locked phone. Config defaults from user's stated setup: chat beast/big, optional beast/small, speech whisper-live. Do not infer realtime transcription from its name. Do not add keys to source, bundle or PR.
 
 The locally installed package-lock uses SDK 0.0.16 / simulator 0.9.5 / CLI 0.1.14. SDK's declared Even App floor is 2.2.10. Frontend build has passed once before this handoff. See current test output rather than assuming all checks pass.
+
+## Stored sessions — I1
+
+Implemented on 2026-10-26: opt-in SQLite session store, WAV segment upload and import, final transcript turns, manual revisions, coverage gaps, transcription worker with retries and restart recovery, JSON/Markdown export, deletion, retention and the `npm run session:import` CLI. See `docs/SESSIONS.md`.
+
+Verified locally: 121 tests pass, lint and TypeScript/Vite build pass, coverage thresholds pass on Node 22.20, a 90-second WAV imports as three transcribed segments, audio files are removed after transcription, and a job left `running` is retried to `done` after a gateway restart.
+
+Still open for I1/MVP: client session list/detail and Resume/End UI, G2 capture writing into the same store, summary/task extraction, and real Beast STT/chat verification. `Product_spec.md` remains untracked and is the product source, not part of the implementation.

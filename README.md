@@ -37,7 +37,7 @@ Open http://localhost:5173, select **Use local demo**, **Test gateway**, then as
 
 Copy `.env.example` to `.env` and fill in the provider endpoints, provider key and a random gateway token of at least 16 characters. Set `ALLOWED_ORIGINS` to the actual client origins, then run `npm run gateway`.
 
-Never put credentials in source files, frontend `VITE_*` variables, the manifest or the `.ehpk`. The phone receives only a gateway token entered at runtime; the frontend keeps it in memory and saves only non-secret settings (gateway origin, language, model names and optional vocabulary) as preferences. The gateway does not persist recordings or conversations. Use HTTPS for deployment.
+Never put credentials in source files, frontend `VITE_*` variables, the manifest or the `.ehpk`. The phone receives only a gateway token entered at runtime; the frontend keeps it in memory and saves only non-secret settings (gateway origin, language, model names and optional vocabulary) as preferences. The gateway keeps conversations in memory by default. The opt-in session store adds SQLite-backed sessions, WAV import, transcripts, coverage gaps and export; audio is deleted after transcription or after 24 hours, and ended sessions expire after 30 days. See [beast-g2/docs/SESSIONS.md](beast-g2/docs/SESSIONS.md). Use HTTPS for deployment.
 
 ### Build for the glasses
 
