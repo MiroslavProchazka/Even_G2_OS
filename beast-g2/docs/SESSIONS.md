@@ -221,6 +221,12 @@ Every upload is idempotent: a repeated segment id returns `duplicate: true` and 
 A writer conflict, a reused sequence and a paused session are never treated as duplicates, so audio is
 not lost silently.
 
+The client was also exercised against the official `@evenrealities/evenhub-simulator` with its automation
+API on port 9899. A click from the glasses reaches the app as a touch `sysEvent` with `eventSource` set and
+no `eventType`; the protobuf encoding omits the zero `CLICK_EVENT`, so `gesture()` treats that shape as a
+tap. Without the fallback the tap did nothing in the simulator. The simulator proves gesture delivery and
+that PCM events flow after a tap; it does not prove microphone quality, locked-phone behaviour or BLE recovery.
+
 ## Not in this phase
 
 Task promotion into an external task system is still separate work. Stored sessions, summaries and

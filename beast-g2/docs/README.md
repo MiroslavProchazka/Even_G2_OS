@@ -3,7 +3,8 @@
 Start with the document that matches your question. Architecture and limits are in
 `ANALYSIS.md`; security and quality findings are in `AUDIT.md`; known gaps and
 next steps are in `BACKLOG.md`; product direction inspired by IRIS is in
-`IRIS-COMPARISON.md`.
+`IRIS-COMPARISON.md`. The staged plan for I3 completion and I4 to I7, with phases
+sized for parallel agents, is in [ROADMAP.md](../../ROADMAP.md).
 
 | Document | What it covers |
 | --- | --- |

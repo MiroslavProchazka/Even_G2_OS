@@ -31,6 +31,8 @@ All notable changes to this repository are documented here. The format follows [
 - `src/capture.ts`: G2 capture writes into a stored session in 30-second segments with stable segment ids, bounded retries, coverage gaps, partial flushes on pause and end, and a final `end` with the last accepted sequence.
 - A ref-counted microphone port, so a manual question, continuous listening and a stored session can share the G2 microphone.
 - One short session status line on the glasses (`REC 00:12 S3`, `PAUSED S5`, `ERR MIC`).
+- `ROADMAP.md`: staged plan for I3 completion and I4 to I7, with per-agent phases, file ownership and parallel waves.
+- `Product_spec.md` version 0.2: implementation status for FR-01 to FR-12, implemented modules and the real limits and retention.
 
 ### Changed
 
@@ -54,6 +56,7 @@ All notable changes to this repository are documented here. The format follows [
 - A native SDK timeout now marks the session unresponsive: later microphone, display and exit operations fail fast with a clear error instead of waiting behind an unresolved native call. Late native resolution cannot start a queued stop.
 - A writer conflict is no longer treated as a stored segment, so a competing writer cannot silently drop audio.
 - The sessions panel now submits its forms: primary buttons were `type="button"`, so clicking them did nothing. A recorder failure shows its own message instead of a generic error.
+- A touch `sysEvent` with `eventSource` and no `eventType` is now a tap. The protobuf encoding omits the zero `CLICK_EVENT`, so a click from the glasses was ignored in the official EvenHub simulator.
 
 ## [0.5.0] - 2026-10-25
 

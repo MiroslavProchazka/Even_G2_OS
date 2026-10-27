@@ -35,10 +35,14 @@ Verified locally on Node 20.18: 144 tests pass, lint and TypeScript/Vite build p
 
 Implemented on 2026-10-27: the phone app has a Conversations section with the session list, detail, transcript with citation chips, coverage gaps, jobs, summary editing, preparation snapshots and export; `src/capture.ts` records a stored session from the G2 microphone in 30-second segments with retries, coverage gaps, partial flushes and a final `end` with the last accepted sequence; continuous listening and stored capture share one ref-counted microphone port; the glasses show one short status line.
 
-Verified locally on Node 20.18: 197 tests pass, lint, Prettier and the TypeScript/Vite build pass. A real browser against the loopback demo gateway listed two stored sessions, opened a detail with transcript, gap and summary, saved a manual summary edit, created a preparation snapshot from the ready summary and showed a recorder failure as its own message. The end-to-end HTTP smoke test covered create, start, 60-second WAV import, end, summary, preparation, Markdown export and delete.
+Verified locally on Node 20.18: 198 tests pass, lint, Prettier and the TypeScript/Vite build pass. A real browser against the loopback demo gateway listed two stored sessions, opened a detail with transcript, gap and summary, saved a manual summary edit, created a preparation snapshot from the ready summary and showed a recorder failure as its own message. The end-to-end HTTP smoke test covered create, start, 60-second WAV import, end, summary, preparation, Markdown export and delete.
 
-Fixed while integrating: primary form buttons in the sessions panel were `type="button"`, so clicking them never submitted the form; a writer conflict was treated as a duplicate segment and the audio was dropped silently; and the G2 microphone was stopped when a manual question ended during a stored session.
+Verified in the official `@evenrealities/evenhub-simulator` on 2026-10-27 (automation API on port 9899): the webview renders the Conversations panel, the glasses show the session status line, and a click from the glasses starts recording. The simulator sends a touch `sysEvent` with `eventSource` set and no `eventType` because protobuf omits the zero `CLICK_EVENT`; `gesture()` now treats that shape as a tap. Before the fix the tap was ignored. The simulator does not prove microphone quality, locked-phone behaviour or BLE recovery.
+
+Fixed while integrating: primary form buttons in the sessions panel were `type="button"`, so clicking them never submitted the form; a writer conflict was treated as a duplicate segment and the audio was dropped silently; the G2 microphone was stopped when a manual question ended during a stored session; and a touch `sysEvent` without `eventType` was not recognized as a tap.
 
 Still open for I3: real G2 hardware capture with the actual microphone, live Beast summary quality evaluation, and task promotion into an external task system. The coverage gate still needs a Node newer than 20 locally.
+
+The staged plan for I4 to I7, including per-agent phases, file ownership and parallel waves, is in [ROADMAP.md](../../ROADMAP.md).
 
 `Product_spec.md` is now tracked in the repository and remains the product source.

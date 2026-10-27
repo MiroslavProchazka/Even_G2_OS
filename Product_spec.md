@@ -1,12 +1,26 @@
 # Product spec — Even G2: rozhovory, paměť a pracovní kontext
 
-Verze: 0.1 · Datum: 26. 10. 2026 · Stav: návrh k iteraci
+Verze: 0.2 · Datum: 27. 10. 2026 · Stav: MVP implementováno, ověření na hardwaru otevřené
 
-Výchozí implementace: `beast-g2` 0.5.0, commit `786ffc7469a1ec8888025f9f595aa1651e02a6ab`.
+Výchozí implementace: `beast-g2` 0.5.0, commit `49484c2`.
 
-Tento dokument obsahuje kritické review původního návrhu a jeho opravenou podobu. Požadavky popisují cílové chování, nikoli již implementované funkce. Číselné limity a metriky jsou navržené výchozí hodnoty pro pilot; nejsou výsledkem měření ani schváleným závazkem.
+Tento dokument obsahuje kritické review původního návrhu a jeho opravenou podobu. Požadavky popisují cílové chování; část MVP je implementovaná a její skutečný stav uvádí sekce 0. Číselné limity a metriky jsou navržené výchozí hodnoty pro pilot; nejsou výsledkem měření ani schváleným závazkem. Prováděcí plán etap a fází včetně rozdělení práce mezi agenty je v [ROADMAP.md](ROADMAP.md).
 
 Pro další produktové iterace je toto konsolidovaný návrh navazující na [IRIS-COMPARISON.md](beast-g2/docs/IRIS-COMPARISON.md) a [BACKLOG.md](beast-g2/docs/BACKLOG.md). Rozdíly a změny priorit jsou výslovně uvedeny níže. Současné chování nadále popisují kód a provozní dokumentace. Specifikace sama nepovoluje zpracování firemních dat ani nasazení integrací.
+
+## 0. Stav implementace k 27. 10. 2026
+
+MVP z etap I1–I3 je implementované a lokálně ověřené. Následující tabulka rozlišuje druh důkazu; „hotovo“ znamená implementováno a pokryté testem, nikoli ověřené na skutečném hardwaru.
+
+| Oblast | Stav | Důkaz | Co chybí |
+| --- | --- | --- | --- |
+| Serverové relace, segmenty, finální přepis, revize, mezery, export, smazání (I1) | Hotovo | 121 testů, 90s WAV jako tři segmenty, obnova jobu po restartu, smazání audia po přepisu | Ověření proti živému Beast STT |
+| Souhrny a preparation snapshoty (I2) | Hotovo | 144 testů, migrace v2, HTTP tok create → end → summary → preparation, stale při nové mezeře | Kvalita souhrnů na živém modelu, lidské hodnocení |
+| Klientské UI relací a G2 capture (I3) | Hotovo, ověřeno v simulátoru | 198 testů, lint, Prettier, build; prohlížeč proti demo gateway; EvenHub simulátor: tap z brýlí spustí poslech a tečou PCM eventy | Skutečný mikrofon G2, zamčený telefon, výpadky BLE, výdrž baterie |
+| Živá pomoc (Ask, hinty, Captions) | Původní prototyp, beze změny | Testy controlleru a continuous režimu | Kvalita a četnost hintů, Captions režim |
+| Paměť, hledání, pracovní kontext | Neimplementováno | – | Etapy I4–I6 v [ROADMAP.md](ROADMAP.md) |
+
+Důkazy jsou z lokálního běhu na Node 20.18 (`better-sqlite3` je v tomto checkoutu kompilovaný pro Node 20) a z prohlížeče proti loopback demo gateway. Simulátor `@evenrealities/evenhub-simulator` ověřil doručení tap gesta z brýlí do aplikace; neověřuje kvalitu mikrofonu ani chování při zamčeném telefonu. Nasazení, HTTPS a reálné Beast inferenční volání zůstávají otevřené.
 
 ## 1. Produktové rozhodnutí
 
@@ -55,15 +69,15 @@ V předchozí kontrole tohoto commitu prošlo 97 testů, typecheck, lint a kontr
 
 Součástí MVP:
 
-1. Jednouživatelský provoz na jednom backendu a v jednom datovém prostoru.
-2. Nová relace s názvem, jazykem, cílem a volitelnou přípravou.
-3. Import podporovaného audio souboru; G2 vstup po ověření jeho provozních limitů.
-4. Průběžné ukládání finálních přepisů, časových intervalů a známých mezer.
-5. Pauza, konec relace, obnovení jejího obsahu a explicitní pokračování poslechu.
-6. Souhrn, rozhodnutí, návrhy úkolů a otevřené otázky s odkazy na zdrojové pasáže.
-7. Oprava přepisu a výsledku, export Markdown/JSON, smazání relace.
-8. Seznam relací a ruční výběr předchozí relace jako přípravy na další rozhovor.
-9. Základní ověření připojení a skutečného STT/chat volání na testovacím obsahu.
+1. Jednouživatelský provoz na jednom backendu a v jednom datovém prostoru. — hotovo (I1)
+2. Nová relace s názvem, jazykem, cílem a volitelnou přípravou. — hotovo (I1)
+3. Import podporovaného audio souboru; G2 vstup po ověření jeho provozních limitů. — import hotovo (I1), G2 capture implementováno a ověřeno v simulátoru (I3), hardware otevřen
+4. Průběžné ukládání finálních přepisů, časových intervalů a známých mezer. — hotovo (I1)
+5. Pauza, konec relace, obnovení jejího obsahu a explicitní pokračování poslechu. — hotovo (I1/I3)
+6. Souhrn, rozhodnutí, návrhy úkolů a otevřené otázky s odkazy na zdrojové pasáže. — hotovo (I2)
+7. Oprava přepisu a výsledku, export Markdown/JSON, smazání relace. — hotovo (I1/I2)
+8. Seznam relací a ruční výběr předchozí relace jako přípravy na další rozhovor. — hotovo (I2/I3)
+9. Základní ověření připojení a skutečného STT/chat volání na testovacím obsahu. — otevřeno, závisí na živém Beast profilu
 
 Explicitní Ask může využít aktuální relaci; selhání této funkce nesmí zastavit přepis. Dosavadní automatické hinty zůstanou experimentální a vypnuté pro první měření hodnoty uložené relace.
 
@@ -105,20 +119,20 @@ Příští příprava využije uživatelem vybraný souhrn. Po jeho změně je z
 
 ## 5. Funkční požadavky a přijetí
 
-| ID | Požadavek | Kritérium přijetí |
-| --- | --- | --- |
-| FR-01 | Relace má stabilní identitu a stav. | Reload načte stejnou relaci a serverem potvrzené záznamy. Poslech se sám nespustí. |
-| FR-02 | Přepis je nezávislý na hintu a chatu. | Při `show:false`, timeoutu chatu i pomalém displeji se dokončený STT výsledek uloží právě jednou. |
-| FR-03 | Dlouhá řeč se dělí na zpracovatelné segmenty. | Souvislá 90s testovací promluva zachová celý přijatý interval nebo explicitně označí chybu; nevypadne kvůli současnému 30s overflow. |
-| FR-04 | Retry a pořadí segmentů jsou jednoznačné. | Opakovaný upload stejného ID nevytvoří druhý segment; stejné ID s jiným obsahem skončí konfliktem. Výsledky mimo pořadí se řadí podle zdrojové časové osy. |
-| FR-05 | Pause a End zachovají přijatý obsah. | Rozpracovaný poslední úsek se dokončí nebo označí jako neúplný; přijatá fronta se nevyprázdní bez záznamu. |
-| FR-06 | Známé výpadky jsou součástí relace. | Výpadek sítě, restart backendu, přerušení capture a STT chyba mají stav a časový interval, pokud je dostupný. Neznámá délka se tak i označí. |
-| FR-07 | Souhrn vychází z konkrétní revize přepisu. | Každé rozhodnutí a návrh úkolu má platný odkaz na zdroj. Chybějící vlastník či termín zůstane neuveden; podmíněný návrh se nevydává za dohodu. |
-| FR-08 | Opravy nezůstávají skryté. | Změna citované pasáže označí souhrn a související přípravu jako zastaralé. Přegenerování nepřepíše ruční opravu bez upozornění. |
-| FR-09 | Export a smazání mají přesný rozsah. | JSON obsahuje verzi formátu, ID, revize a mezery; Markdown zdroje a stav úplnosti. Smazání znepřístupní relaci i její indexy a odvozené výstupy. |
-| FR-10 | Nastavení odpovídá skutečné datové cestě. | Test `/models` není prezentován jako ověřený přepis. Každá použitá služba je pojmenována; selhání nemění poskytovatele. |
-| FR-11 | Následná příprava je dohledatelná. | Uživatel vybere minulou relaci a otevře z přípravy původní souhrn/pasáž s datem. |
-| FR-12 | Import používá stejný model relace. | Stejné typy přepisu, citací a souhrnu jako u G2; jiný zdroj audia není zvláštní paralelní archiv. |
+| ID | Požadavek | Kritérium přijetí | Stav k 27. 10. 2026 |
+| --- | --- | --- | --- |
+| FR-01 | Relace má stabilní identitu a stav. | Reload načte stejnou relaci a serverem potvrzené záznamy. Poslech se sám nespustí. | Hotovo. Detail relace se načítá podle ID, capture se po reloadu nespustí bez akce uživatele. |
+| FR-02 | Přepis je nezávislý na hintu a chatu. | Při `show:false`, timeoutu chatu i pomalém displeji se dokončený STT výsledek uloží právě jednou. | Hotovo pro uloženou relaci; segment se ukládá a přepisuje bez ohledu na chat. Continuous režim beze změny. |
+| FR-03 | Dlouhá řeč se dělí na zpracovatelné segmenty. | Souvislá 90s testovací promluva zachová celý přijatý interval nebo explicitně označí chybu; nevypadne kvůli současnému 30s overflow. | Částečně. Uložená relace dělí na 30s segmenty a server přijímá až 60s; continuous/VAD má stále 30s overflow. |
+| FR-04 | Retry a pořadí segmentů jsou jednoznačné. | Opakovaný upload stejného ID nevytvoří druhý segment; stejné ID s jiným obsahem skončí konfliktem. Výsledky mimo pořadí se řadí podle zdrojové časové osy. | Hotovo. Deduplikace, `sequence_conflict` a oddělený `writer_conflict`. |
+| FR-05 | Pause a End zachovají přijatý obsah. | Rozpracovaný poslední úsek se dokončí nebo označí jako neúplný; přijatá fronta se nevyprázdní bez záznamu. | Hotovo. Partial flush při pauze i konci, `end` s posledním přijatým pořadím. |
+| FR-06 | Známé výpadky jsou součástí relace. | Výpadek sítě, restart backendu, přerušení capture a STT chyba mají stav a časový interval, pokud je dostupný. Neznámá délka se tak i označí. | Hotovo pro síť, STT a přerušení capture; neznámá délka zůstává `unknown`. |
+| FR-07 | Souhrn vychází z konkrétní revize přepisu. | Každé rozhodnutí a návrh úkolu má platný odkaz na zdroj. Chybějící vlastník či termín zůstane neuveden; podmíněný návrh se nevydává za dohodu. | Hotovo. Revize přepisu, citace na turny, `null` vlastník/termín. Kvalita nezměřena. |
+| FR-08 | Opravy nezůstávají skryté. | Změna citované pasáže označí souhrn a související přípravu jako zastaralé. Přegenerování nepřepíše ruční opravu bez upozornění. | Hotovo. Stale při změně přepisu, mezery i expirace audia; ruční revize zůstává. |
+| FR-09 | Export a smazání mají přesný rozsah. | JSON obsahuje verzi formátu, ID, revize a mezery; Markdown zdroje a stav úplnosti. Smazání znepřístupní relaci i její indexy a odvozené výstupy. | Hotovo. Export `formatVersion: 2`, Markdown se souhrnem a přípravou; smazání včetně preparationů. |
+| FR-10 | Nastavení odpovídá skutečné datové cestě. | Test `/models` není prezentován jako ověřený přepis. Každá použitá služba je pojmenována; selhání nemění poskytovatele. | Částečně. Nastavení pojmenovává gateway, STT a chat; ověření živého přepisu chybí. |
+| FR-11 | Následná příprava je dohledatelná. | Uživatel vybere minulou relaci a otevře z přípravy původní souhrn/pasáž s datem. | Hotovo. Preparation nese zdrojovou relaci, revizi, datum, focus a citace. |
+| FR-12 | Import používá stejný model relace. | Stejné typy přepisu, citací a souhrnu jako u G2; jiný zdroj audia není zvláštní paralelní archiv. | Hotovo. Import vytváří stejné segmenty, turny a souhrny jako G2 capture. |
 
 ### Pravidla souhrnu
 
@@ -133,6 +147,8 @@ Souhrn nesmí vycházet jen z posledních zpráv modelového kontextu. Delší r
 Stav relace: `draft → active ↔ paused → ended → deleted`.
 
 Samostatně se sleduje capture (`off / starting / on / unknown`), zpracování segmentů a souhrn (`not_requested / pending / ready / failed / stale`). Stav `ended` neznamená, že všechny STT úlohy již doběhly. UI může ukazovat „relace ukončena, přepis se dokončuje“.
+
+Implementace tento model dodržuje: server rozlišuje stav relace, stav capture a stav souhrnu; jeden aktivní zapisující klient drží writer lease a konflikt vrací `writer_conflict`; segmenty procházejí `buffered → accepted → transcribed` s `failed/expired`; klient posílá 30s segmenty, při pauze a konci doplní částečný úsek a v `end` uvede poslední přijaté pořadí. Limity jsou 60 minut a 100 000 znaků na relaci, audio se drží 24 hodin, relace 30 dní.
 
 Segment prochází stavy `buffered → accepted → transcribed`, případně `failed / expired`. Preview je přepis k průběžnému zobrazení; není další finální promluvou. Citace míří na finální revizi. Řeč rozdělená technickým limitem může tvořit více segmentů jedné promluvy. Segmentace musí emitovat dokončenou část před dosažením limitu a pokračovat další částí; případný překryv se řeší podle časové osy, nikoli slepým mazáním opakovaných slov.
 
@@ -187,6 +203,22 @@ SQLite je zde návrhová volba pro jednouzlovou aplikaci. Oficiální dokumentac
 - `CueService`: explicitní Ask a volitelná politika nápověd. Při přetížení se omezí hinty a preview před ztrátou finálního přepisu.
 - `SummaryService`: úloha nad konkrétní revizí, validace struktury a zdrojových odkazů.
 - `MemoryService` a `ConnectorService`: až po MVP, vlastní pravidla přístupu a aktuálnosti.
+
+### Implementované moduly (I1–I3)
+
+| Modul | Soubor | Stav |
+| --- | --- | --- |
+| Session store, migrace, repository | `server/sessions/db.mjs`, `repository.mjs` | Hotovo, SQLite, migrace v2 |
+| Session service a limity | `server/sessions/service.mjs` | Hotovo, writer lease, segmenty, revize, mezery |
+| HTTP API relací | `server/sessions/http.mjs` | Hotovo, create/list/detail/start/pause/resume/end/segment/import/summary/preparation/export/delete |
+| STT worker | `server/sessions/worker.mjs` | Hotovo, retry, obnova po restartu |
+| Souhrny | `server/sessions/summary.mjs`, `summary-content.mjs` | Hotovo, revize, citace, stale, single-flight |
+| Klientský kontrakt | `src/session-api.ts` | Hotovo, typovaný klient a chyby |
+| Klientské UI relací | `src/sessions.ts`, `sessions-view.ts` | Hotovo, seznam, detail, souhrn, preparation, export |
+| G2 capture do uložené relace | `src/capture.ts` | Hotovo, 30s segmenty, retry, mezery, partial flush |
+| Napojení v aplikaci | `src/main.ts` | Hotovo, ref-counted mikrofon, stavový řádek |
+
+`MemoryService` a `ConnectorService` z hranic modulů zatím neexistují; jejich fáze jsou v [ROADMAP.md](ROADMAP.md).
 
 Přenos na brýle potvrzený SDK není důkaz, že uživatel text přečetl. Telemetrie rozlišuje vytvoření, přijetí SDK, expiraci a explicitní uživatelskou akci. Zastaralý hint se zahodí bez ztráty zdrojového přepisu.
 
@@ -293,32 +325,32 @@ Pokud jsou souhrny přínosné, ale hinty ruší, pokračovat s archivem a expli
 
 ## 13. Iterace a návaznost na starší backlog
 
-| Etapa | Výstup | Podmínka dokončení |
-| --- | --- | --- |
-| I0 — základ a měření | Zdrojová testovací sada, provider kontrakty, rozpočet a minimální provozní profil; souběžně G2 test. | Je známo, co umí capture a inference, a existuje srovnávací ruční postup. |
-| I1 — relace nad importem | Příjem segmentů, perzistence, finální přepis, stav úloh, export a smazání. | Fault testy FR-01 až FR-06 a FR-09/12; obnova po restartu. |
-| I2 — souhrn a další příprava | Citace, opravy, revize, výběr minulého souhrnu. | FR-07/08/11 a první hodnocení přesnosti. |
-| I3 — integrace G2 | Oddělené pipeline, dlouhá řeč, spolehlivé Pause/End a stav uložení. | Hardwarová sada a jasně uvedený podporovaný provoz. I1–I3 tvoří MVP. |
-| I4 — paměť a živá pomoc | Vyhledávání, dotazy nad relací, schvalované poznatky; oddělený experiment Captions a hintů. | Užitečnost retrievalu, opravy a smazání odvozených dat; přijatelná míra vyrušování. |
-| I5 — pracovní kontext | Jeden omezený read-only briefing nebo příprava nad povolenými zdroji. | Ověřené pokrytí, aktuálnost, správné stavy a prokázaná úspora. |
-| I6 — otevřená rozhraní | API/MCP, případně další capture adaptér a schvalované akce. | Ověřený přístupový model a samostatný test každého nového vstupu či akce. |
+| Etapa | Výstup | Podmínka dokončení | Stav |
+| --- | --- | --- | --- |
+| I0 — základ a měření | Zdrojová testovací sada, provider kontrakty, rozpočet a minimální provozní profil; souběžně G2 test. | Je známo, co umí capture a inference, a existuje srovnávací ruční postup. | Částečně. Kontrakty a demo existují; měření kvality a nákladů chybí. |
+| I1 — relace nad importem | Příjem segmentů, perzistence, finální přepis, stav úloh, export a smazání. | Fault testy FR-01 až FR-06 a FR-09/12; obnova po restartu. | Hotovo. 121 testů, obnova jobu po restartu, 90s WAV. |
+| I2 — souhrn a další příprava | Citace, opravy, revize, výběr minulého souhrnu. | FR-07/08/11 a první hodnocení přesnosti. | Hotovo. 144 testů, migrace v2, stale. Kvalita nezměřena. |
+| I3 — integrace G2 | Oddělená pipeline, dlouhá řeč, spolehlivé Pause/End a stav uložení. | Hardwarová sada a jasně uvedený podporovaný provoz. I1–I3 tvoří MVP. | Hotovo v kódu a simulátoru, 198 testů. Hardwarová sada otevřená. |
+| I4 — paměť a živá pomoc | Vyhledávání, dotazy nad relací, schvalované poznatky; oddělený experiment Captions a hintů. | Užitečnost retrievalu, opravy a smazání odvozených dat; přijatelná míra vyrušování. | Nezahájeno. Fáze I4.0–I4.5 v [ROADMAP.md](ROADMAP.md). |
+| I5 — pracovní kontext | Jeden omezený read-only briefing nebo příprava nad povolenými zdroji. | Ověřené pokrytí, aktuálnost, správné stavy a prokázaná úspora. | Nezahájeno. Fáze I5.1–I5.3. |
+| I6 — otevřená rozhraní | API/MCP, případně další capture adaptér a schvalované akce. | Ověřený přístupový model a samostatný test každého nového vstupu či akce. | Nezahájeno. Fáze I6.1–I6.3. |
 
-Kalendářní odhady doplnit po I0 a rozdělení I1 na konkrétní změny. Původní odhady 1–3 dny na modul nezahrnovaly plně změny capture, persistenci a obnovu, a nejsou závazným plánem.
+Kalendářní odhady záměrně nejsou v této tabulce; pořadí prací, závislosti a velikosti jednotlivých fází jsou v [ROADMAP.md](ROADMAP.md). Původní odhady 1–3 dny na modul nezahrnovaly plně změny capture, persistenci a obnovu, a nejsou závazným plánem.
 
 Mapování: B1 zůstává hardwarové ověření, ale neblokuje I1/I2; B2 je součást I1/I3; B4 je I2; B3 a IRIS P1.1/P1.4/P1.5 přecházejí do I4. B5 zůstává volitelný experiment kompatibility IRIS, nikoli vývojová závislost. Základní setup a vysvětlení datové cesty se posouvají z pozdějších priorit do MVP. Dlouhodobá opt-in paměť je nyní výslovná součást vize, čímž se upravuje dřívější blanketní odmítnutí cross-session paměti.
 
 ## 14. Rozhodnutí pro další iteraci
 
-| ID | Otázka | Výchozí návrh | Kdy rozhodnout |
-| --- | --- | --- | --- |
-| OQ-01 | Jaký rozhovor bude první pilot? | Opakované nesenzitivní plánování projektu, kde lze zkontrolovat závazky a návaznost. | I0 |
-| OQ-02 | Kde poběží úložiště a inference? | Vlastní osobní instance; Beast jen pro výslovně povolený profil dat. Žádné předpokládané propojení osobního archivu s pracovní infrastrukturou. | Před uložením skutečného obsahu |
-| OQ-03 | Je aktivní telefon přijatelný? | Pilot ano; každodenní použitelnost ověřit měřením. | Po G2 testu |
-| OQ-04 | Je přijatelná dočasná serverová kopie audia a navržená retence? | Audio jen do přepisu, maximálně 24 h; relace 30 dní s možností ponechat. | Před implementací persistence |
-| OQ-05 | Jaký je strop nákladů a údržby? | Změřit jednu relaci, stanovit limit na týden; započíst opakované STT preview. | I0 |
-| OQ-06 | Potřebujeme české sémantické hledání? | Nejprve výběr relace a fulltext, potom anotované dotazy a srovnání. | I4 |
-| OQ-07 | Jakou konkrétní výhodu přinese Omi? | Rozhodovat až podle nedostatků G2/telefonu, ověřit přímou datovou cestu. | Po pilotu |
-| OQ-08 | Který pracovní systém je autoritativní pro první workflow? | Jeden konkrétní zdroj a omezený rozsah, bez plošné synchronizace. | I5 |
+| ID | Otázka | Výchozí návrh | Kdy rozhodnout | Stav k 27. 10. 2026 |
+| --- | --- | --- | --- | --- |
+| OQ-01 | Jaký rozhovor bude první pilot? | Opakované nesenzitivní plánování projektu, kde lze zkontrolovat závazky a návaznost. | I0 | Otevřeno |
+| OQ-02 | Kde poběží úložiště a inference? | Vlastní osobní instance; Beast jen pro výslovně povolený profil dat. Žádné předpokládané propojení osobního archivu s pracovní infrastrukturou. | Před uložením skutečného obsahu | Otevřeno, implementace používá lokální SQLite |
+| OQ-03 | Je aktivní telefon přijatelný? | Pilot ano; každodenní použitelnost ověřit měřením. | Po G2 testu | Otevřeno, čeká na hardware |
+| OQ-04 | Je přijatelná dočasná serverová kopie audia a navržená retence? | Audio jen do přepisu, maximálně 24 h; relace 30 dní s možností ponechat. | Před implementací persistence | Implementováno jako výchozí (24 h / 30 dní), uživatel výslovně nepotvrdil |
+| OQ-05 | Jaký je strop nákladů a údržby? | Změřit jednu relaci, stanovit limit na týden; započíst opakované STT preview. | I0 | Otevřeno |
+| OQ-06 | Potřebujeme české sémantické hledání? | Nejprve výběr relace a fulltext, potom anotované dotazy a srovnání. | I4 | Otevřeno, rozhoduje fáze I4.1 |
+| OQ-07 | Jakou konkrétní výhodu přinese Omi? | Rozhodovat až podle nedostatků G2/telefonu, ověřit přímou datovou cestu. | Po pilotu | Otevřeno |
+| OQ-08 | Který pracovní systém je autoritativní pro první workflow? | Jeden konkrétní zdroj a omezený rozsah, bez plošné synchronizace. | I5 | Otevřeno |
 
 Otevřené položky nejsou důvodem blokovat syntetické testy a návrh datového modelu. Jsou podmínkami konkrétních navazujících kroků. Jejich výchozí návrhy nebyly uživatelem samostatně potvrzeny.
 
@@ -330,8 +362,9 @@ Otevřené položky nejsou důvodem blokovat syntetické testy a návrh datovéh
 - IRIS: [funkce](https://www.eveniris.com/discover), [agent bridge](https://www.eveniris.com/agent), [soukromí](https://www.eveniris.com/privacy); přečteno 26. 10. 2026 v předchozím návrhu. Jde o tvrzení výrobce, nikoli hardware test. Inspirací je návaznost přípravy, živé pomoci a následného využití relací; naše architektura není odvozena jako kopie jeho interní implementace.
 - [SQLite: vhodné použití](https://www.sqlite.org/whentouse.html), [FTS5](https://www.sqlite.org/fts5.html); ověřeno 26. 10. 2026 pro návrh jednouzlového úložiště.
 
-Při další iteraci zachovat ID požadavků a rozhodnutí. U každé změny uvést důvod, dopad na rozsah a potřebné ověření. Implementovanou funkci označit až s odkazem na změnu a její ověření; zvlášť uvádět syntetický test, integrační test a hardware evidence. Před první implementací persistence sladit README, SECURITY, CONTRIBUTING a starší roadmapu s přijatými rozhodnutími z tohoto dokumentu.
+Při další iteraci zachovat ID požadavků a rozhodnutí. U každé změny uvést důvod, dopad na rozsah a potřebné ověření. Implementovanou funkci označit až s odkazem na změnu a její ověření; zvlášť uvádět syntetický test, integrační test a hardware evidence. Prováděcí členění na etapy a fáze pro paralelní agenty udržovat v [ROADMAP.md](ROADMAP.md); tento dokument zůstává produktovým zdrojem, roadmapa zdrojem pořadí práce.
 
 ### Historie
 
+- **0.2 — 27. 10. 2026:** stav implementace MVP (I1–I3), tabulka stavu FR-01 až FR-12, implementované moduly, skutečné limity a retence, stav otevřených rozhodnutí, odkazy na ROADMAP.md.
 - **0.1 — 26. 10. 2026:** kritické review původního návrhu; zúžení MVP, oddělení přepisu a nápověd, smlouva potvrzení/obnovy, revize a zdrojové reference, retence a mazání, měřitelný pilot a návaznost na starší backlog.

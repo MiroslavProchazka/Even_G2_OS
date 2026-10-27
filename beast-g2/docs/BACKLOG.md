@@ -2,6 +2,7 @@
 
 Aktualizováno: 27. října 2026. Výchozí verze: 0.5.0, PR #5 sloučen.
 Stav níže uvedených položek: navrženo, neimplementováno/neověřeno, pokud není uvedeno jinak. Pořadí je návrh pro další iterace, nikoli závazný harmonogram.
+Prováděcí členění na etapy a fáze pro paralelní práci agentů je v [ROADMAP.md](../../ROADMAP.md); tento backlog zůstává seznamem konkrétních položek.
 Produktový rámec a priority z porovnání s IRIS jsou v [IRIS-COMPARISON.md](IRIS-COMPARISON.md). Tento backlog zůstává seznam konkrétních iterací.
 
 ## IRIS: srovnávací test a inspirace
