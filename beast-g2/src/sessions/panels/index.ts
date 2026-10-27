@@ -1,6 +1,7 @@
 import type { SessionsDeps } from '../../sessions'
 import { captionsPanel } from './captions'
 import { newSessionPanel } from './new-session'
+import { qaPanel } from './qa'
 import { searchPanel } from './search'
 
 /**
@@ -28,4 +29,5 @@ export function mountSessionPanels(section: HTMLElement, deps: SessionsDeps): vo
 
 registerSessionPanel(newSessionPanel)
 registerSessionPanel(searchPanel)
+registerSessionPanel(qaPanel)
 registerSessionPanel(captionsPanel)

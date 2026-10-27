@@ -54,6 +54,7 @@ All routes require `Authorization: Bearer <gateway-token>`.
 | --- | --- |
 | `GET /api/sessions?limit=50` | List sessions, newest first. |
 | `GET /api/sessions/search?q=&limit=50` | Full-text search over the final transcript. |
+| `POST /api/sessions/:id/qa` | Ask one question about the session. Body: `question`. Returns an answer with citations or `evidence: "insufficient"`. |
 | `POST /api/sessions` | Create a session. Body: `name`, optional `language` (`cs`, `en`, `auto`), `source` (`import`, `g2`), `goal`, `prep`, `timezone`, `retentionDays`. |
 | `GET /api/sessions/:id` | Session detail with segments, turns, gaps, jobs, summaries and the latest preparation. |
 | `DELETE /api/sessions/:id` | Delete the session, its indexes, revisions and stored audio. Idempotent. |
@@ -105,6 +106,53 @@ in the session. Sessions with `status = 'deleted'` are excluded.
 This is lexical search only: no embeddings, no semantic ranking, no search in summaries and no
 answer generation. The Conversations panel debounces typing by 250 ms, aborts the previous
 request and opens the selected session when a hit is clicked.
+
+## Questions about a session
+
+`POST /api/sessions/:id/qa` answers one question about one stored session. Body:
+`{ "question": "Co jsme se dohodli o rozpočtu?" }`. The question is trimmed and may contain at
+most 500 characters; an empty question returns `400 question_required`, a longer one
+`400 invalid_question`.
+
+```json
+{
+  "answer": {
+    "text": "Rozpočet byl schválen na 120 tisíc.",
+    "evidence": "sufficient",
+    "citations": [
+      { "turnId": "trn_…", "revision": 1, "startMs": 65000, "endMs": 95000, "quote": "Rozpočet schválíme na 120 tisíc." }
+    ]
+  },
+  "requestId": "…"
+}
+```
+
+The answer is built only from the final transcript of that session and its latest summary.
+Candidate passages come from the same FTS5 index as search, filtered to the session; a question
+that does not match one turn is retried without function words and then per word. The provider
+receives at most 20 turns and 12 000 characters of turn text, in transcript order, plus the summary
+only when it is `ready` and bound to the current transcript revision. A turn that does not fit the
+remaining character budget is skipped, never truncated.
+
+Every citation must name a turn that was shown to the provider, at its current revision. The gateway drops the whole
+answer and returns `evidence: "insufficient"` with no citations when the provider returns no citation,
+when any citation names an unknown turn or a stale revision, when the answer shares no content word
+with a cited turn, when no candidate passage exists, or when the transcript revision changes during the
+provider call. `insufficient` is a normal `200` result, not an error: the client shows the message
+"The transcript does not contain enough evidence to answer this question." The route never returns a partial
+answer. A provider timeout (30 s) or failure returns `502 qa_failed`; so does a malformed answer with no text
+or more than 4 000 characters.
+
+The call is read-only: it never writes a turn, a summary or a session row, so a question cannot change
+the transcript revision. The default provider is extractive: it quotes the best matching passage and cites
+that turn, adding no wording of its own. A caller of `createSessions` can inject a chat-backed `answer`
+provider that must return `{ text, citations: [{ turnId, revision }] }`.
+
+Not guaranteed: the support check is lexical, not semantic, so a paraphrase that shares no content word
+with its cited turn is reported as `insufficient` instead of being shown as grounded. Candidate passages
+are the best 50 hits of the shared index, so a very common question can rank another session's passages
+above this session's. Answers are not verified facts, not cross-session synthesis and not external research.
+There is no voice input and no memory write in this phase.
 
 ## Summaries and preparation
 

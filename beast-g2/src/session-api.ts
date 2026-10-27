@@ -32,3 +32,4 @@ export type {
   SummaryItem
 } from './session-api/summary'
 export type { SearchResponse, SearchResult } from './session-api/search'
+export type { QaAnswer, QaCitation, QaEvidence, QaResponse } from './session-api/qa'
