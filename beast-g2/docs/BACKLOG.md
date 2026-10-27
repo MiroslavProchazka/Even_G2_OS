@@ -1,6 +1,6 @@
 # Beast G2 — backlog dalších iterací
 
-Aktualizováno: 25. října 2026. Výchozí verze: 0.5.0, PR #5 sloučen.
+Aktualizováno: 27. října 2026. Výchozí verze: 0.5.0, PR #5 sloučen.
 Stav níže uvedených položek: navrženo, neimplementováno/neověřeno, pokud není uvedeno jinak. Pořadí je návrh pro další iterace, nikoli závazný harmonogram.
 Produktový rámec a priority z porovnání s IRIS jsou v [IRIS-COMPARISON.md](IRIS-COMPARISON.md). Tento backlog zůstává seznam konkrétních iterací.
 
@@ -18,7 +18,7 @@ Produktový rámec a priority z porovnání s IRIS jsou v [IRIS-COMPARISON.md](I
 - Zachovat přepis a dokončené hinty po přerušení nebo reloadu; nabídnout Resume / End session.
 - Navrhnout opt-in lokální ukládání, omezení velikosti a doby uchování, export a smazání. Raw audio neukládat automaticky.
 - Přijetí: restart aplikace obnoví správnou relaci bez duplicitních odpovědí; smazání odstraní i persistentní kopii. Mikrofon se po obnově nespustí bez vědomého spuštění uživatelem.
-- Stav: I1 ukládá relace, segmenty, finální přepis, revize, mezery a export na serveru; klientské Resume/End UI a ověření na skutečném G2 zůstávají.
+- Stav: I1 ukládá relace, segmenty, finální přepis, revize, mezery a export na serveru; I3 přidává klientské UI se seznamem, detailem a Resume/End a capture z G2 mikrofonu do stejného úložiště. Ověření na skutečném G2 zůstává.
 - Samostatně ověřit běh se zamčeným telefonem; persistence sama nezajišťuje background listening.
 
 ### B3 · P2 · Méně / více nápověd během rozhovoru
@@ -33,14 +33,14 @@ Produktový rámec a priority z porovnání s IRIS jsou v [IRIS-COMPARISON.md](I
 - Na vyžádání vytvořit rozhodnutí, úkoly, otevřené otázky a krátký souhrn přes Beast.
 - U úkolů uvádět vlastníka/termín pouze tehdy, když zazněl; chybějící údaje označit. Umožnit dohledat podklad v přepisu a opravit výsledek.
 - Přijetí: exportovatelný souhrn; žádné automatické rozesílání nebo zakládání úkolů v externích službách.
-- Stav: I2 implementuje souhrn vázaný na revizi přepisu, citace na konkrétní turny, kandidáty úkolů s explicitním vlastníkem/termínem nebo `null`, ruční opravu a export. Ověření kvality na reálném Beast a klientské UI zůstávají.
+- Stav: I2 implementuje souhrn vázaný na revizi přepisu, citace na konkrétní turny, kandidáty úkolů s explicitním vlastníkem/termínem nebo `null`, ruční opravu a export; I3 přidává klientské UI souhrnu včetně ruční opravy. Ověření kvality na reálném Beast zůstává.
 
 ### B4b · P1 · Preparation na další rozhovor
 
 - Z vybraného minulého souhrnu sestavit kontext pro novou relaci: rozhodnutí, otevřené otázky, kandidáty úkolů a zdrojové citace.
 - Preparation je neměnný snapshot; výběr jiného souhrnu vytvoří nový snapshot, nepřepíše starý.
 - Přijetí: preparation nese zdrojovou relaci, datum, focus a citace; změna přepisu zdrojového souhrnu označí preparation jako stale.
-- Stav: I2 implementuje API a uložení; napojení do G2 displeje a klientského UI zůstává.
+- Stav: I2 implementuje API a uložení; I3 přidává klientské UI s výběrem zdrojového souhrnu, focusem a citacemi a krátký stavový řádek na brýlích. Ověření na hardwaru zůstává.
 
 ### B5 · P2 · Prověřit IRIS → Beast / Hermes jako alternativní klient
 

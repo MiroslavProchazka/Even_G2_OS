@@ -10,6 +10,9 @@ import { createContinuousDemo, simulateUtterance } from './continuous-demo'
 import { connectEven } from './even'
 import { version } from '../package.json'
 import { connectionMessage, historyVisible, isBusy, modeSwitchNote } from './view'
+import { initSessions, type SessionRecorder } from './sessions'
+import { SessionClient } from './session-api'
+import { StoredSessionCapture } from './capture'
 
 const root = document.querySelector<HTMLDivElement>('#app')!
 root.innerHTML = `<header><span>BEAST / G2</span><span class="tag">DEVICE TEST · ${version}</span></header>
@@ -64,11 +67,31 @@ let port: AudioPort = {
   },
   async stop() {}
 }
+// The microphone is one physical resource shared by a manual question, continuous listening and a stored session.
+const audioHolders = { count: 0, queue: Promise.resolve() as Promise<unknown> }
+function audioStep<T>(step: () => Promise<T>): Promise<T> {
+  const run = audioHolders.queue.then(step, step)
+  audioHolders.queue = run.catch(() => undefined)
+  return run
+}
+const sharedAudio: AudioPort = {
+  start: () =>
+    audioStep(async () => {
+      if (audioHolders.count === 0) await port.start()
+      audioHolders.count++
+    }),
+  stop: () =>
+    audioStep(async () => {
+      if (audioHolders.count === 0) return
+      audioHolders.count--
+      if (audioHolders.count === 0) await port.stop()
+    })
+}
 const measuredAudio: AudioPort = {
   async start() {
     const trace = diagnostics.span('mic')
     try {
-      await port.start()
+      await sharedAudio.start()
       trace.end('info', { phase: 'on' })
     } catch (error) {
       trace.end('error', { code: errorCode(error) })
@@ -78,7 +101,7 @@ const measuredAudio: AudioPort = {
   async stop() {
     const trace = diagnostics.span('mic')
     try {
-      await port.stop()
+      await sharedAudio.stop()
       trace.end('info', { phase: 'off' })
     } catch (error) {
       trace.end('error', { phase: 'unknown' })
@@ -88,6 +111,7 @@ const measuredAudio: AudioPort = {
 }
 let display: LatestDisplay | undefined,
   page = 0
+let sessionLine = ''
 let pageClosed = false
 let even: Awaited<ReturnType<typeof connectEven>> | undefined
 let mode: 'manual' | 'continuous' | 'simulation' = 'manual'
@@ -100,6 +124,37 @@ const statusMonitor = new StatusMonitor()
 let stopDeviceStatus: (() => void) | undefined
 let historyRevision = ''
 let lastDiagnosticState = ''
+// Stored sessions: the phone panel owns list and detail; the glasses get one short status line.
+const sessionApi = new SessionClient(() => settings)
+const writerId = (() => {
+  const stored = localStorage.getItem('beast-g2-writer-id')
+  if (stored && /^[A-Za-z0-9_.:-]{1,100}$/.test(stored)) return stored
+  const id = `phone-${Math.random().toString(16).slice(2, 10)}`
+  try {
+    localStorage.setItem('beast-g2-writer-id', id)
+  } catch {
+    /* The id stays stable for this page only. */
+  }
+  return id
+})()
+const capture = new StoredSessionCapture(measuredAudio, sessionApi, { writerId, onChange: () => paint() })
+const recorder: SessionRecorder = {
+  open: (input) => capture.open(input),
+  attach: (id) => capture.attach(id),
+  pause: () => capture.pause(),
+  resume: () => capture.resume(),
+  end: () => capture.end()
+}
+const sessions = initSessions({
+  client: sessionApi,
+  writerId,
+  recorder,
+  canConnect: () => settings.token !== '',
+  onGlassesStatus: (text) => {
+    sessionLine = text
+    paint()
+  }
+})
 function paint() {
   const state = mode === 'manual' ? controller.state : activeContinuous().viewState(),
     view = hud(state, page)
@@ -120,7 +175,9 @@ function paint() {
     )
   }
   element('listening').textContent = status
-  const displayText = mode === 'manual' ? view.text : continuousHud(listening)
+  const baseText = mode === 'manual' ? view.text : continuousHud(listening)
+  const line = capture.state.phase === 'idle' ? sessionLine : capture.statusLine()
+  const displayText = line ? `${line}\n${baseText}` : baseText
   element('previous').hidden = element('next').hidden = mode !== 'manual'
   const header = statusMonitor.header(mode === 'manual' ? ['starting', 'recording', 'transcribing', 'answering'].includes(state.phase) : listening.microphone === 'on')
   element('status-left').textContent = header.left
@@ -175,6 +232,7 @@ function apply() {
     /* Optional preferences only. */
   }
   element('connection').textContent = connectionMessage(settings)
+  void sessions.refresh()
 }
 element('settings').addEventListener('submit', (event) => {
   event.preventDefault()
@@ -353,6 +411,8 @@ window.addEventListener('pagehide', (event) => {
     pageClosed = true
     stopDeviceStatus?.()
     clearInterval(statusTimer)
+    sessions.dispose()
+    void capture.dispose()
     display?.dispose()
     even?.dispose()
   }
@@ -413,6 +473,7 @@ void connectEven(
     }
     if (mode === 'manual') controller.onPcm(pcm)
     else if (mode === 'continuous') continuous.onPcm(pcm)
+    capture.onPcm(pcm)
   }
 )
   .then((connected) => {

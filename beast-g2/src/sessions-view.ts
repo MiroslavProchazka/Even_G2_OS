@@ -170,8 +170,11 @@ const errorMessages: Record<string, string> = {
   summary_too_large: 'The transcript is too large to summarize in one request.'
 }
 
+export class RecorderError extends Error {}
+
 /** Actionable text for a gateway failure. Never includes a stack trace or exception message. */
 export function describeError(error: unknown): string {
+  if (error instanceof RecorderError) return error.message
   if (error instanceof SessionApiError) {
     const text = errorMessages[error.code] ?? `The gateway rejected the request (HTTP ${error.status}, ${error.code}). Try again.`
     return error.requestId ? `${text} Request ${error.requestId}.` : text

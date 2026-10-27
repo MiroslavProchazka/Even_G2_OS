@@ -99,6 +99,10 @@ class FakeElement {
 
   click() {
     this.dispatch('click')
+    if (this.type !== 'submit') return
+    let node = this.parent
+    while (node && node.tagName !== 'FORM') node = node.parent
+    node?.dispatch('submit')
   }
 
   focus() {
@@ -356,9 +360,11 @@ class FakeClient {
 class FakeRecorder implements SessionRecorder {
   calls: Array<{ method: string; args: unknown[] }> = []
   nextId = 'ses_rec'
+  failWith?: Error
 
   async open(input: { name: string; language: SessionLanguage; goal?: string; prep?: string }) {
     this.calls.push({ method: 'open', args: [input] })
+    if (this.failWith) throw this.failWith
     return this.nextId
   }
 
@@ -471,7 +477,7 @@ test('creating a session without a recorder imports a draft and explains the imp
   const section = dom.document.main.children[0]!
   const form = findForm(section, 'sessions-create')!
   find(form, (element) => element.name === 'name')!.value = 'Fresh call'
-  form.dispatch('submit')
+  findButton(form, 'Create session')!.click()
   await settle()
   const call = client.calls.find((entry) => entry.method === 'create')!
   assert.deepEqual(call.args[0], { name: 'Fresh call', language: 'cs', source: 'import' })
@@ -494,12 +500,31 @@ test('a recorder opens the returned session and the panel shows it', async (t) =
   find(form, (element) => element.name === 'language')!.value = 'en'
   find(form, (element) => element.name === 'goal')!.value = 'Ship it'
   find(form, (element) => element.name === 'prep')!.value = 'Bring notes'
-  form.dispatch('submit')
+  findButton(form, 'Start recording')!.click()
   await settle()
   assert.deepEqual(recorder.calls[0], { method: 'open', args: [{ name: 'Live call', language: 'en', goal: 'Ship it', prep: 'Bring notes' }] })
   assert.match(section.textContent, /Recording started/)
   assert.match(section.textContent, /Live call/)
   assert.ok(client.calls.some((call) => call.method === 'detail' && call.args[0] === 'ses_rec'))
+  handle.dispose()
+})
+
+test('a recorder failure shows its own message instead of a generic error', async (t) => {
+  const dom = installDom()
+  t.after(dom.restore)
+  const client = new FakeClient()
+  const recorder = new FakeRecorder()
+  recorder.failWith = new Error('G2 microphone not connected. Use a text question to test the gateway.')
+  const handle = initSessions({ client: client as unknown as SessionClient, writerId: 'phone', recorder })
+  await settle()
+  const section = dom.document.main.children[0]!
+  const form = findForm(section, 'sessions-create')!
+  find(form, (element) => element.name === 'name')!.value = 'Live call'
+  findButton(form, 'Start recording')!.click()
+  await settle()
+  assert.match(section.textContent, /G2 microphone not connected/)
+  assert.doesNotMatch(section.textContent, /Unexpected error/)
+  assert.equal(client.calls.filter((call) => call.method === 'create').length, 0)
   handle.dispose()
 })
 
@@ -620,7 +645,7 @@ test('a ready summary becomes a preparation snapshot with source date, focus and
   const select = find(section, (element) => element.tagName === 'SELECT')!
   select.value = 'sum_1'
   find(section, (element) => element.tagName === 'TEXTAREA' && element.placeholder === 'What should the next conversation build on?')!.value = 'Next steps'
-  findForm(section, 'session-preparation-form')!.dispatch('submit')
+  findButton(section, 'Use as preparation')!.click()
   await settle()
   assert.deepEqual(client.calls.find((call) => call.method === 'createPreparation')!.args, ['ses_1', { sourceSummaryId: 'sum_1', focus: 'Next steps' }])
   assert.match(section.textContent, /Previous call/)

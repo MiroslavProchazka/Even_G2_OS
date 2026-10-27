@@ -15,6 +15,7 @@ import {
   languageLabel,
   latestSummary,
   pollDelay,
+  RecorderError,
   sessionDurationMs,
   sessionStatusLabel,
   sortSessions,
@@ -55,9 +56,9 @@ function el<K extends keyof HTMLElementTagNameMap>(tag: K, className?: string, t
   return element
 }
 
-function button(label: string, className = ''): HTMLButtonElement {
+function button(label: string, className = '', type: 'button' | 'submit' = 'button'): HTMLButtonElement {
   const element = el('button', className, label)
-  element.type = 'button'
+  element.type = type
   return element
 }
 
@@ -189,10 +190,27 @@ export function initSessions(deps: SessionsDeps): SessionsHandle {
     try {
       await task()
     } catch (error) {
-      if (!disposed) showError(error)
+      if (!disposed) {
+        showError(error)
+        // A failed recording still created the session on the gateway; show it so it can be ended or deleted.
+        if (error instanceof RecorderError) await loadList()
+      }
     } finally {
       if (disposed) busy = false
       else setBusy(false)
+    }
+  }
+
+  /**
+   * Recorder failures come from the phone, not the gateway, so their own message is shown. Gateway failures keep the
+   * code-based wording and never leak a stack trace.
+   */
+  async function record<T>(call: () => Promise<T>): Promise<T> {
+    try {
+      return await call()
+    } catch (error) {
+      if (error instanceof SessionApiError) throw error
+      throw new RecorderError(error instanceof Error ? error.message : String(error))
     }
   }
 
@@ -236,7 +254,7 @@ export function initSessions(deps: SessionsDeps): SessionsHandle {
     prep.placeholder = 'People, context and facts to have ready.'
     prepLabel.append(prep)
 
-    const submit = gate(button(deps.recorder ? 'Start recording' : 'Create session'), () => true, persistentGated)
+    const submit = gate(button(deps.recorder ? 'Start recording' : 'Create session', '', 'submit'), () => true, persistentGated)
     form.append(nameLabel, languageLabelElement, goalLabel, prepLabel, submit)
     form.append(
       el(
@@ -637,10 +655,7 @@ export function initSessions(deps: SessionsDeps): SessionsHandle {
     for (const [index, candidate] of (summary.content.actionCandidates ?? summary.actionCandidates ?? []).entries()) form.append(actionEditor(candidate, index, rows))
     for (const [index, item] of (summary.content.openQuestions ?? []).entries()) form.append(itemEditor('openQuestions', item, index, rows))
     form.append(el('p', 'hint', 'Removing an item is allowed. Adding items is not, because every new item would need its own citation.'))
-    const save = gate(button('Save changes'), () => true, summaryGated)
-    save.addEventListener('click', () => {
-      void saveSummary(summary, overview, rows)
-    })
+    const save = gate(button('Save changes', '', 'submit'), () => true, summaryGated)
     const cancel = gate(button('Cancel', 'secondary'), () => true, summaryGated)
     cancel.addEventListener('click', () => {
       editing = null
@@ -703,7 +718,7 @@ export function initSessions(deps: SessionsDeps): SessionsHandle {
     focusLabel.append(focus)
     gate(source, () => true, preparationGated)
     gate(focus, () => true, preparationGated)
-    const submit = gate(button('Use as preparation'), () => true, preparationGated)
+    const submit = gate(button('Use as preparation', '', 'submit'), () => true, preparationGated)
     form.append(sourceLabelElement, focusLabel, submit)
     form.addEventListener('submit', (event) => {
       event.preventDefault()
@@ -817,7 +832,7 @@ export function initSessions(deps: SessionsDeps): SessionsHandle {
     await run(async () => {
       let id: string
       if (deps.recorder) {
-        id = await deps.recorder.open(input)
+        id = await record(() => deps.recorder!.open(input))
         diagnostics.record('session', 'session.created')
         showStatus('Recording started. Pause or end it from the session below.')
       } else {
@@ -843,15 +858,15 @@ export function initSessions(deps: SessionsDeps): SessionsHandle {
     await run(async () => {
       if (recorder) {
         if (kind === 'start') {
-          await recorder.attach(session.id)
+          await record(() => recorder.attach(session.id))
           diagnostics.record('session', 'session.started')
           showStatus('Recording started for this session.')
           await refreshSelected()
           return
         }
-        if (kind === 'pause') await recorder.pause()
-        if (kind === 'resume') await recorder.resume()
-        if (kind === 'end') await recorder.end()
+        if (kind === 'pause') await record(() => recorder.pause())
+        if (kind === 'resume') await record(() => recorder.resume())
+        if (kind === 'end') await record(() => recorder.end())
       } else {
         if (kind === 'start') await deps.client.start(session.id, deps.writerId)
         if (kind === 'pause') await deps.client.pause(session.id, deps.writerId)

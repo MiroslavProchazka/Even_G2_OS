@@ -29,6 +29,16 @@ Still open for I1/MVP: client session list/detail and Resume/End UI, G2 capture 
 
 Implemented on 2026-10-26: structured summaries bound to a transcript revision, exact turn citations, decisions and action candidates with explicit owner/deadline or `null`, open questions, manual summary edits, staleness after transcript changes, asynchronous summary generation, and immutable preparation snapshots for a target session. New routes are documented in `docs/SESSIONS.md`; export format is now version 2.
 
-Verified locally on Node 20.18: 144 tests pass, lint and TypeScript/Vite build pass. Summary provider parsing and error handling are covered, migration v2 preserves v1 transcription jobs, the HTTP flow requests a summary after `end`, waits for `ready`, reads the latest summary and creates a preparation, and a new gap or a missing segment marks a ready summary stale. The coverage gate was not re-run locally because `better-sqlite3` in this checkout is built for Node 20 while the coverage threshold flags need a newer Node; CI still runs it. Still open: live Beast summary quality evaluation, client summary/preparation UI, task promotion into an external task system, and G2 capture integration.
+Verified locally on Node 20.18: 144 tests pass, lint and TypeScript/Vite build pass. Summary provider parsing and error handling are covered, migration v2 preserves v1 transcription jobs, the HTTP flow requests a summary after `end`, waits for `ready`, reads the latest summary and creates a preparation, and a new gap or a missing segment marks a ready summary stale. The coverage gate was not re-run locally because `better-sqlite3` in this checkout is built for Node 20 while the coverage threshold flags need a newer Node; CI still runs it. Still open: live Beast summary quality evaluation, task promotion into an external task system.
+
+## Client sessions UI and G2 capture — I3
+
+Implemented on 2026-10-27: the phone app has a Conversations section with the session list, detail, transcript with citation chips, coverage gaps, jobs, summary editing, preparation snapshots and export; `src/capture.ts` records a stored session from the G2 microphone in 30-second segments with retries, coverage gaps, partial flushes and a final `end` with the last accepted sequence; continuous listening and stored capture share one ref-counted microphone port; the glasses show one short status line.
+
+Verified locally on Node 20.18: 197 tests pass, lint, Prettier and the TypeScript/Vite build pass. A real browser against the loopback demo gateway listed two stored sessions, opened a detail with transcript, gap and summary, saved a manual summary edit, created a preparation snapshot from the ready summary and showed a recorder failure as its own message. The end-to-end HTTP smoke test covered create, start, 60-second WAV import, end, summary, preparation, Markdown export and delete.
+
+Fixed while integrating: primary form buttons in the sessions panel were `type="button"`, so clicking them never submitted the form; a writer conflict was treated as a duplicate segment and the audio was dropped silently; and the G2 microphone was stopped when a manual question ended during a stored session.
+
+Still open for I3: real G2 hardware capture with the actual microphone, live Beast summary quality evaluation, and task promotion into an external task system. The coverage gate still needs a Node newer than 20 locally.
 
 `Product_spec.md` is now tracked in the repository and remains the product source.

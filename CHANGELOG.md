@@ -27,6 +27,10 @@ All notable changes to this repository are documented here. The format follows [
 - Asynchronous summary generation with chunking, provider JSON validation, single-flight runs, failure recovery and staleness after transcript, coverage or audio-retention changes.
 - Immutable preparation snapshots that select a past summary for a target session and keep source date, focus and citations.
 - Summary, summary-list, summary-edit, preparation and preparation-list API routes; session detail and export now include them.
+- Phone **Conversations** section: stored session list, detail with transcript and citation chips, coverage gaps, transcription jobs, summary editing, preparation snapshots and Markdown export.
+- `src/capture.ts`: G2 capture writes into a stored session in 30-second segments with stable segment ids, bounded retries, coverage gaps, partial flushes on pause and end, and a final `end` with the last accepted sequence.
+- A ref-counted microphone port, so a manual question, continuous listening and a stored session can share the G2 microphone.
+- One short session status line on the glasses (`REC 00:12 S3`, `PAUSED S5`, `ERR MIC`).
 
 ### Changed
 
@@ -48,6 +52,8 @@ All notable changes to this repository are documented here. The format follows [
 - The UI disables the ask button outside manual mode, hides hint history in manual mode, and explains why a mode switch is blocked.
 - The client warns when a gateway is configured over plain HTTP outside loopback.
 - A native SDK timeout now marks the session unresponsive: later microphone, display and exit operations fail fast with a clear error instead of waiting behind an unresolved native call. Late native resolution cannot start a queued stop.
+- A writer conflict is no longer treated as a stored segment, so a competing writer cannot silently drop audio.
+- The sessions panel now submits its forms: primary buttons were `type="button"`, so clicking them did nothing. A recorder failure shows its own message instead of a generic error.
 
 ## [0.5.0] - 2026-10-25
 

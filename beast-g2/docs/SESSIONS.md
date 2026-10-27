@@ -200,7 +200,28 @@ chunks and never holds the whole recording in memory.
 - A manually edited summary is never overwritten by an automatic regeneration unless
   `force: true` is passed. Related preparations are marked stale, not deleted.
 
+## Client
+
+The phone app has a **Conversations** section built by `src/sessions.ts`. It lists stored
+sessions newest first with date, duration, status, coverage and source, and opens a detail with
+the transcript, coverage gaps, transcription jobs, the latest summary with citation chips,
+summary editing, preparation snapshots and export. `Resume`/`End` act through the recorder when
+the glasses are connected and through the API otherwise. A citation chip scrolls to the cited turn
+and highlights it. The section is only rendered; nothing is recorded until a session is started.
+
+`src/capture.ts` records a stored session from the G2 microphone. It creates the session with
+`source: g2`, starts it, uploads 30-second WAV segments with a stable segment id and sequence,
+retries with bounded backoff, records a coverage gap when a segment is finally dropped, flushes a
+partial segment on pause and on end, and ends with the last accepted sequence. Continuous listening
+and stored capture share one microphone through a reference-counted port in `src/main.ts`, so ending a
+question does not stop a recording session. The glasses show one short status line
+(`REC 00:12 S3`, `PAUSED S5`, `ERR MIC`) above the normal HUD.
+
+Every upload is idempotent: a repeated segment id returns `duplicate: true` and is not counted twice.
+A writer conflict, a reused sequence and a paused session are never treated as duplicates, so audio is
+not lost silently.
+
 ## Not in this phase
 
-G2 capture integration and the client session UI are still separate work. The stored
-session, summary and preparation APIs are the base they will read from.
+Task promotion into an external task system is still separate work. Stored sessions, summaries and
+preparations are the base it will read from.
