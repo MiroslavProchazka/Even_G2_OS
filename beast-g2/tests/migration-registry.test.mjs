@@ -21,10 +21,10 @@ function tempDatabase(t) {
   return { dir, file: path.join(dir, 'sessions.sqlite') }
 }
 
-test('the migration registry exposes versions 1, 2, 3 and 4 in ascending order', () => {
+test('the migration registry exposes versions 1, 2, 3, 4 and 5 in ascending order', () => {
   assert.deepEqual(
     migrations.map((migration) => migration.version),
-    [1, 2, 3, 4]
+    [1, 2, 3, 4, 5]
   )
   for (const migration of migrations) {
     assert.equal(typeof migration.sql, 'string')
@@ -39,22 +39,23 @@ test('migrate applies the default registry to a fresh database', (t) => {
 
   migrate(db)
 
-  assert.deepEqual(versions(db), [1, 2, 3, 4])
+  assert.deepEqual(versions(db), [1, 2, 3, 4, 5])
   assert.ok(db.prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'summaries'").get())
+  assert.ok(db.prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'memory_items'").get())
 })
 
 test('a migration module appended to the registry is applied without editing db.mjs', async (t) => {
   const { dir, file } = tempDatabase(t)
-  writeFileSync(path.join(dir, '005-seam-probe.mjs'), 'export const version = 5\nexport const sql = `\n      CREATE TABLE seam_probe (id TEXT PRIMARY KEY);\n    `\n')
-  const probe = await import(pathToFileURL(path.join(dir, '005-seam-probe.mjs')).href)
+  writeFileSync(path.join(dir, '006-seam-probe.mjs'), 'export const version = 6\nexport const sql = `\n      CREATE TABLE seam_probe (id TEXT PRIMARY KEY);\n    `\n')
+  const probe = await import(pathToFileURL(path.join(dir, '006-seam-probe.mjs')).href)
   const db = new Database(file)
   t.after(() => db.close())
 
   migrate(db, [...migrations, probe])
 
-  assert.deepEqual(versions(db), [1, 2, 3, 4, 5])
+  assert.deepEqual(versions(db), [1, 2, 3, 4, 5, 6])
   assert.ok(db.prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'seam_probe'").get())
 
   migrate(db, [...migrations, probe])
-  assert.deepEqual(versions(db), [1, 2, 3, 4, 5])
+  assert.deepEqual(versions(db), [1, 2, 3, 4, 5, 6])
 })

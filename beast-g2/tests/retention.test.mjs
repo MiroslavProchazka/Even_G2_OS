@@ -58,6 +58,8 @@ function seed(db, dataDir) {
   const preparation = `prp_${'b'.repeat(32)}`
   const gap = `gap_${'c'.repeat(32)}`
   const job = `job_${'d'.repeat(32)}`
+  const memoryOld = `mem_${'e'.repeat(32)}`
+  const memoryFresh = `mem_${'f'.repeat(32)}`
 
   db.prepare(`INSERT INTO workspace (id, provider_profile, retention_days, created_at) VALUES ('default', '{}', 30, ?)`).run(NOW)
   const insertSession = db.prepare(`INSERT INTO sessions (
@@ -245,6 +247,13 @@ function seed(db, dataDir) {
   ) VALUES (?, 'transcribe', ?, ?, ?, 'pending', 0, 3, ?, ?, ?)`
   ).run(job, ids.old, segments.oldPending, 'transcribe:old-pending', NOW - 45 * DAY, NOW - 45 * DAY, NOW - 45 * DAY)
 
+  const insertMemory = db.prepare(`INSERT INTO memory_items (
+    id, workspace_id, session_id, turn_id, turn_revision, kind, text, source_quote, status,
+    source_deleted, evidence_state, created_at, updated_at
+  ) VALUES (?, 'default', ?, ?, 1, 'decision', ?, ?, 'approved', 0, 'present', ?, ?)`)
+  insertMemory.run(memoryOld, ids.old, turns.old, 'RETENTION MEMORY OLD', 'RETENTION OLD', NOW - 40 * DAY, NOW - 40 * DAY)
+  insertMemory.run(memoryFresh, ids.fresh, turns.fresh, 'RETENTION MEMORY FRESH', 'RETENTION FRESH', NOW - DAY, NOW - DAY)
+
   const files = {
     oldTranscribed: writeAudio(dataDir, audio(ids.old, segments.oldTranscribed), 64),
     oldPending: writeAudio(dataDir, audio(ids.old, segments.oldPending), 32),
@@ -252,7 +261,7 @@ function seed(db, dataDir) {
     active: writeAudio(dataDir, audio(ids.active, segments.active), 16),
     restore: writeAudio(dataDir, audio(ids.restore, segments.restore), 24)
   }
-  return { ids, segments, turns, summary, action, preparation, gap, job, files }
+  return { ids, segments, turns, summary, action, preparation, gap, job, memoryOld, memoryFresh, files }
 }
 
 function fixture(t) {
@@ -326,6 +335,8 @@ test('sessions expire after 30 days while active and paused sessions stay', (t) 
   assert.equal(count(fx.db, 'coverage_gaps', 'session_id', fx.ids.old), 0)
   assert.equal(count(fx.db, 'jobs', 'session_id', fx.ids.old), 0)
   assert.equal(count(fx.db, 'transcript_search', 'session_id', fx.ids.old), 0)
+  assert.equal(count(fx.db, 'memory_items', 'session_id', fx.ids.old), 0)
+  assert.equal(count(fx.db, 'memory_items', 'session_id', fx.ids.fresh), 1)
 
   assert.ok(!existsSync(fx.files.oldTranscribed))
   assert.ok(!existsSync(fx.files.oldPending))
@@ -465,6 +476,7 @@ test('a manual delete writes the deletion journal in the same transaction', (t) 
 
   assert.equal(service.deleteSession(fx.ids.fresh), true)
   assert.equal(fx.db.prepare('SELECT id FROM sessions WHERE id = ?').get(fx.ids.fresh), undefined)
+  assert.equal(count(fx.db, 'memory_items', 'session_id', fx.ids.fresh), 0)
   const journal = listDeletedSessions(fx.db)
   assert.equal(journal.length, 1)
   assert.equal(journal[0].sessionId, fx.ids.fresh)

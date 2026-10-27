@@ -2,6 +2,7 @@ import { createHash, randomUUID } from 'node:crypto'
 import { mkdirSync, renameSync, statfsSync, unlinkSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import { ApiError } from '../errors.mjs'
+import { deleteMemoryForSession } from './memory.mjs'
 import { recordDeletedSessions } from './retention.mjs'
 import { BYTES_PER_MS, ByteReader, WavError, makeWavHeader, parseWavHeader, validateWavBuffer } from './wav.mjs'
 
@@ -475,15 +476,18 @@ export class SessionService {
     return format === 'markdown' ? this.renderMarkdown(exported) : exported
   }
 
-  deleteSession(sessionId) {
+  deleteSession(sessionId, options = {}) {
     if (typeof sessionId !== 'string' || !SESSION_ID.test(sessionId)) throw new ApiError(400, 'invalid_session', 'Invalid session ID.')
     const now = this.now()
     // A manual delete is journaled in the same transaction as the hard delete, so a restore that predates it cannot
-    // bring the session back. The journal row carries no text and no audio path.
+    // bring the session back. The journal row carries no text and no audio path. Memory items derived from the session
+    // follow the same rule: they are deleted unless the caller explicitly keeps them, and a kept item records that its
+    // evidence is gone instead of pointing at a missing turn.
     const result = this.repo.transaction(() => {
       const session = this.repo.getSession(sessionId)
       if (!session) return null
       recordDeletedSessions(this.repo.db, [{ sessionId, deletedAt: now, reason: 'user_deleted', retentionDeadline: session.expiresAt }])
+      deleteMemoryForSession(this.repo.db, sessionId, { keep: options.keepMemory === true, now })
       return this.repo.deleteSession(sessionId)
     })
     if (!result) return false
