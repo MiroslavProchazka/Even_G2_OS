@@ -1,0 +1,72 @@
+{
+  "name": "explicit decision with owner and deadline",
+  "language": "cs",
+  "notes": "Synthetic fixture for the summary evaluation harness. No real session data.",
+  "synthetic": true,
+  "turns": [
+    {
+      "id": "turn_01010000000000000000000000000000",
+      "revision": 1,
+      "startMs": 0,
+      "endMs": 15000,
+      "text": "Takže k rozpočtu na Q1. Navrhuju, abychom ho schválili dnes."
+    },
+    {
+      "id": "turn_01020000000000000000000000000000",
+      "revision": 1,
+      "startMs": 15000,
+      "endMs": 30000,
+      "text": "Souhlasím, schvalujeme rozpočet na Q1."
+    },
+    {
+      "id": "turn_01030000000000000000000000000000",
+      "revision": 1,
+      "startMs": 30000,
+      "endMs": 45000,
+      "text": "Petra, ty připravíš podklady do 15. listopadu, že?"
+    },
+    {
+      "id": "turn_01040000000000000000000000000000",
+      "revision": 1,
+      "startMs": 45000,
+      "endMs": 60000,
+      "text": "Ano, připravím je do 15. listopadu."
+    }
+  ],
+  "expected": {
+    "decisions": ["Rozpočet na Q1"],
+    "actionCandidates": [
+      {
+        "text": "Podklady k rozpočtu",
+        "owner": "Petra",
+        "due": "2026-11-15"
+      }
+    ],
+    "openQuestions": []
+  },
+  "summary": {
+    "schemaVersion": 1,
+    "transcriptRevision": 1,
+    "overview": {
+      "text": "Tým schválil rozpočet na Q1 a Petra připraví podklady.",
+      "citations": ["turn_01020000000000000000000000000000", "turn_01030000000000000000000000000000"]
+    },
+    "decisions": [
+      {
+        "text": "Schválili jsme rozpočet na Q1.",
+        "citations": ["turn_01020000000000000000000000000000"]
+      }
+    ],
+    "actionCandidates": [
+      {
+        "text": "Petra připraví podklady k rozpočtu do 15. listopadu.",
+        "owner": "Petra",
+        "due": "2026-11-15",
+        "dueText": "do 15. listopadu",
+        "conditional": false,
+        "citations": ["turn_01030000000000000000000000000000", "turn_01040000000000000000000000000000"]
+      }
+    ],
+    "openQuestions": []
+  }
+}

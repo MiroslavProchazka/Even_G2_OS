@@ -1,0 +1,50 @@
+{
+  "name": "question that is not a decision",
+  "language": "cs",
+  "notes": "Synthetic fixture for the summary evaluation harness. No real session data.",
+  "synthetic": true,
+  "turns": [
+    {
+      "id": "turn_05010000000000000000000000000000",
+      "revision": 1,
+      "startMs": 0,
+      "endMs": 15000,
+      "text": "Musíme ten návrh stihnout do pátku?"
+    },
+    {
+      "id": "turn_05020000000000000000000000000000",
+      "revision": 1,
+      "startMs": 15000,
+      "endMs": 30000,
+      "text": "Nevím, právníci ještě neodpověděli."
+    },
+    {
+      "id": "turn_05030000000000000000000000000000",
+      "revision": 1,
+      "startMs": 30000,
+      "endMs": 45000,
+      "text": "Tak to nechme otevřené."
+    }
+  ],
+  "expected": {
+    "decisions": [],
+    "actionCandidates": [],
+    "openQuestions": ["Návrh do pátku"]
+  },
+  "summary": {
+    "schemaVersion": 1,
+    "transcriptRevision": 1,
+    "overview": {
+      "text": "Otevřená otázka, zda je možné stihnout návrh do pátku.",
+      "citations": ["turn_05010000000000000000000000000000", "turn_05030000000000000000000000000000"]
+    },
+    "decisions": [],
+    "actionCandidates": [],
+    "openQuestions": [
+      {
+        "text": "Stihneme návrh do pátku?",
+        "citations": ["turn_05010000000000000000000000000000"]
+      }
+    ]
+  }
+}
