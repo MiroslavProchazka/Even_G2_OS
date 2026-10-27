@@ -16,14 +16,16 @@ import a domain file directly.
 | `src/session-api/summary.ts` | summary and preparation types, `SummaryEndpoints` with their routes |
 | `src/session-api/search.ts` | transcript search types and `SearchEndpoints` |
 | `src/session-api/qa.ts` | question, citation and evidence types, `QaEndpoints` |
+| `src/session-api/memory.ts` | memory item, status and evidence types, `MemoryEndpoints` |
 
-Domains compose by inheritance: `SessionClient extends SummaryEndpoints extends SessionClientBase`. Every domain class
-takes the settings provider from the base and calls `this.json`, `this.post` or `this.request`, so the bearer token,
-timeouts, tracing and error mapping stay in one place.
+Domains compose by inheritance: `SessionClient extends MemoryEndpoints extends QaEndpoints extends SearchEndpoints extends
+SummaryEndpoints extends SessionClientBase`. Every domain class takes the settings provider from the base and calls `this.json`,
+`this.post` or `this.request`, so the bearer token, timeouts, tracing and error mapping stay in one place.
 
 To add a domain:
 
-1. Create `src/session-api/<domain>.ts` with its types and `class <Domain>Endpoints extends SessionClientBase`.
+1. Create `src/session-api/<domain>.ts` with its types and `class <Domain>Endpoints extends <CurrentTail>`, where
+   `<CurrentTail>` is the last class in the chain.
 2. Point the next domain's `extends` (or `SessionClient` in `session.ts`) at the new class.
 3. Add one export block to `src/session-api.ts`.
 4. Add a request-shape test to `tests/session-api.test.ts` that imports the barrel.
@@ -49,6 +51,7 @@ Rules:
 | `src/sessions/panels/search.ts` | full-text search input, debounced query, results and selection through the host |
 | `src/sessions/panels/captions.ts` | Captions start/stop controls; it never creates a session |
 | `src/sessions/panels/qa.ts` | question form, evidence badge and citation chips |
+| `src/sessions/panels/memory.ts` | memory proposals, approval, rejection, replacement and source opening; explicit retrieval only |
 | `src/sessions/panels/hints.ts` | opt-in hint toggle, spacing, pause and local feedback counters |
 | `src/sessions/panels/dom.ts` | the `el` and `button` helpers shared by the section and its panels |
 
@@ -68,7 +71,7 @@ To add a panel:
 
 1. Create `src/sessions/panels/<name>.ts` and export `{ id, mount }`.
 2. Register it at the bottom of `panels/index.ts` with `registerSessionPanel(...)`.
-3. Add a test to `tests/panels.test.ts` that mounts it with a fake host and asserts what it renders.
+3. Add a test to `tests/<panel>-panel.test.ts` that mounts it with a fake host and asserts what it renders.
 
 `list`, `detail`, `summary` and `preparation` stay in `sessions.ts` until a later phase moves them. Do not grow
 `sessions.ts` with a new panel.

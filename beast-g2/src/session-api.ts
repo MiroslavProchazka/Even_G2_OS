@@ -33,3 +33,15 @@ export type {
 } from './session-api/summary'
 export type { SearchResponse, SearchResult } from './session-api/search'
 export type { QaAnswer, QaCitation, QaEvidence, QaResponse } from './session-api/qa'
+export type {
+  MemoryEvidenceState,
+  MemoryItem,
+  MemoryKind,
+  MemoryList,
+  MemoryQuery,
+  MemoryResponse,
+  MemoryStatus,
+  ProposeMemoryInput,
+  SupersedeMemoryInput,
+  SupersedeMemoryResponse
+} from './session-api/memory'
