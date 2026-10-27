@@ -2,6 +2,7 @@ import { createHash, randomUUID } from 'node:crypto'
 import { mkdirSync, renameSync, statfsSync, unlinkSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import { ApiError } from '../errors.mjs'
+import { recordDeletedSessions } from './retention.mjs'
 import { BYTES_PER_MS, ByteReader, WavError, makeWavHeader, parseWavHeader, validateWavBuffer } from './wav.mjs'
 
 const SESSION_ID = /^ses_[a-f0-9]{32}$/
@@ -476,7 +477,15 @@ export class SessionService {
 
   deleteSession(sessionId) {
     if (typeof sessionId !== 'string' || !SESSION_ID.test(sessionId)) throw new ApiError(400, 'invalid_session', 'Invalid session ID.')
-    const result = this.repo.deleteSession(sessionId)
+    const now = this.now()
+    // A manual delete is journaled in the same transaction as the hard delete, so a restore that predates it cannot
+    // bring the session back. The journal row carries no text and no audio path.
+    const result = this.repo.transaction(() => {
+      const session = this.repo.getSession(sessionId)
+      if (!session) return null
+      recordDeletedSessions(this.repo.db, [{ sessionId, deletedAt: now, reason: 'user_deleted', retentionDeadline: session.expiresAt }])
+      return this.repo.deleteSession(sessionId)
+    })
     if (!result) return false
     for (const audioPath of result.audioPaths) this.removeAudio(audioPath)
     return true

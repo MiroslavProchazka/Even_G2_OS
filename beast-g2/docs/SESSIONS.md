@@ -166,10 +166,71 @@ in another target session; deleting the target session removes its preparations.
 | `SUMMARY_MAX_CHUNKS` | `12` | Maximum number of chunks per summary. |
 | `SUMMARY_MAX_ITEMS` | `100` | Maximum decisions plus action candidates plus open questions. |
 
-Audio is deleted as soon as its segment is transcribed or permanently fails, or when the
-audio retention window expires. A session deletion removes its audio files, rows, indexes,
-summaries and preparations derived from it.
-An export is a separate copy and is not removed by deleting the session.
+Audio is kept only until its segment is transcribed, and in any case for at most
+24 hours (`AUDIO_RETENTION_HOURS`, default 24). The retention sweep deletes the
+file and clears `segments.audio_path` and `segments.audio_bytes`; the segment row,
+its time range, the transcript turn, revisions, summaries and coverage gaps stay. A
+segment that was never transcribed becomes `expired`, its pending transcription jobs
+fail with `Audio expired before transcription.`, and one `audio_expired` gap records
+the hole. The transcription worker also deletes audio as soon as a segment is
+transcribed or permanently fails, so 24 hours is an upper bound, not a promise to
+keep audio that long.
+
+An ended session is hard-deleted when its retention deadline passes: 30 days after
+the end with the default `SESSION_RETENTION_DAYS=30` (the value is copied to the
+session at creation and may be 1-365). A draft that never started expires 30 days
+after creation. An `active` or `paused` session is never expired by the sweep,
+even after its deadline; only an id in the journal overrides the state check,
+because that deletion already happened after the backup. Deleting a session removes
+its segments, turns, revisions, coverage gaps, jobs, summaries, citations, action
+candidates, preparations and search rows, and its stored audio.
+
+### Deleted ids and restore
+
+Before the sweep removes a session it writes one row to `deleted_sessions`:
+`session_id`, `deleted_at`, `reason` (`retention_expired`) and
+`retention_deadline` (the session's last known `expires_at`). This is the
+soft-delete list: it keeps only the id and metadata after the session row is gone,
+and it has no transcript text and no audio path. The sweep never removes it, and
+every later backup contains it, so a backup taken after the deletion carries the
+tombstone.
+
+A backup taken before the deletion still contains the session. After restoring that
+backup, copy the journal from the live database and sweep the restored copy:
+
+```sh
+node scripts/retention-check.mjs --db /srv/beast/sessions.sqlite \
+  --deleted-from /srv/beast/live.sqlite --apply
+```
+
+Every restored session whose id is in the journal is removed, even when its restored
+`expires_at` is still in the future. Keep an independent copy of the journal (ids,
+times and reasons only) when the live database is gone; without it a restore can
+resurrect a session that was deleted after the backup.
+
+### Running the sweep
+
+`node scripts/retention-check.mjs` is a dry run by default. It copies the database
+to a temporary file, runs the sweep on the copy, prints counts and ids (never
+transcript text), removes the copy and leaves the source unchanged. `--apply` runs the
+sweep on the database itself; `--now <iso>` fixes the clock and `--json` prints a
+machine-readable report. Run it after `scripts/backup.mjs`, for example daily. The sweep
+is idempotent, commits each batch and can be run again after a failure.
+
+The sweep journals its own deletions. A manual `DELETE /api/sessions/:id` writes a
+`user_deleted` tombstone in the same transaction as the hard delete, so a restore that
+imports the journal cannot bring the session back. To carry the journal into a restored
+backup, run `node scripts/retention-check.mjs --db <restored> --deleted-from <live> --apply`
+before exposing the instance; the report lists ids, never transcript text.
+
+### Not covered
+
+- No forensic block erasure: deleted rows and files can remain in free SQLite pages,
+  the WAL, filesystem blocks, snapshots and older backups until those rotate.
+- No provider-side copies: the STT and summary providers, the G2 device, exports and
+  any file-sync client keep their own copies outside this database.
+- No legal assessment: this is an engineering retention mechanism, not a legal opinion
+  on GDPR or any other obligation.
 
 ## Import a WAV file
 

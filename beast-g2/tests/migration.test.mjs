@@ -45,7 +45,7 @@ test('migration v2 preserves transcription jobs from a v1 database', () => {
       .prepare('SELECT version FROM schema_migrations ORDER BY version')
       .all()
       .map((row) => row.version),
-    [1, 2, 3]
+    [1, 2, 3, 4]
   )
   assert.ok(db.prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'summaries'").get())
   db.close()
