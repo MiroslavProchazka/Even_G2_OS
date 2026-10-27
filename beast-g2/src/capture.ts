@@ -99,11 +99,12 @@ function failureOf(error: unknown) {
 
 /**
  * The gateway returns 200 with `duplicate: true` for a repeated segment. Older gateways answer 409 instead, so a
- * conflict means the segment is already stored unless the code names a rejected session state or a reused sequence.
+ * conflict means the segment is already stored unless the code names a rejected session state, a reused sequence
+ * or another writer. Treating a writer conflict as a duplicate would lose audio without a recorded gap.
  */
 function isDuplicate(error: unknown) {
   const { status, code } = failureOf(error)
-  return status === 409 && !['session_paused', 'session_not_active', 'sequence_conflict'].includes(code ?? '')
+  return status === 409 && !['session_paused', 'session_not_active', 'writer_conflict', 'sequence_conflict'].includes(code ?? '')
 }
 
 function clock(ms: number) {

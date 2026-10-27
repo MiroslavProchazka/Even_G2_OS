@@ -323,6 +323,18 @@ test('a duplicate 409 response counts as an accepted segment', async () => {
   assert.equal(capture.state.phase, 'recording')
 })
 
+test('a writer conflict is not treated as a stored segment', async () => {
+  const { capture, client } = setup({ maxAttempts: 2, retryBaseMs: 1 })
+  client.uploadsToFail = 2
+  client.uploadError = new SessionApiError(409, 'writer_conflict', 'Another writer owns this session.')
+  await capture.open({ name: 'Call', language: 'cs' })
+  capture.onPcm(pcm(30000))
+  await until(() => capture.state.segmentsDropped === 1)
+  assert.equal(client.uploads.length, 2)
+  assert.equal(capture.state.segmentsSent, 0)
+  assert.equal(client.gaps.length, 1)
+})
+
 test('exhausted retries record a coverage gap and later segments still upload', async () => {
   const { capture, client } = setup({ maxAttempts: 2, retryBaseMs: 1 })
   client.uploadsToFail = 2
