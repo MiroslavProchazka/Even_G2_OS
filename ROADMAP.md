@@ -126,6 +126,8 @@ U každé fáze je uvedený cíl, závislosti, vlastněné soubory, kritéria p�
 
 **Odhad:** M.
 
+**Stav:** hotovo 27. 10. 2026, commit `8f6779f`. FTS5, diakritika, route, panel; 271 testů v `main`.
+
 ### I4.2 Dotazy nad relací
 
 **Cíl:** Odpovědět na otázku typu „co jsme se dohodli o rozpočtu“ s citacemi na konkrétní turny, nebo jasně říct, že opora chybí.
@@ -167,6 +169,8 @@ U každé fáze je uvedený cíl, závislosti, vlastněné soubory, kritéria p�
 **Mimo rozsah:** ukládání, souhrny, hinty, změny continuous pipeline.
 
 **Odhad:** M.
+
+**Stav:** hotovo 27. 10. 2026, commit `49191c2`. Panel, gesto, žádné volání session API; ověření na G2 otevřené.
 
 ### I4.5 Opt-in hinty
 
@@ -288,13 +292,15 @@ U každé fáze je uvedený cíl, závislosti, vlastněné soubory, kritéria p�
 
 **Závisí na:** nic.
 
-**Vlastní soubory:** `beast-g2/src/diagnostics.ts`, `beast-g2/server/sessions/http.mjs` (jen logování), `beast-g2/.github/workflows/ci.yml`, `beast-g2/docs/REVIEW.md`.
+**Vlastní soubory:** `beast-g2/src/diagnostics.ts`, `beast-g2/server/log.mjs` (nový), `beast-g2/server/gateway.mjs` (jen logování), `.github/workflows/ci.yml`, `beast-g2/docs/REVIEW.md`.
 
-**Kritéria přijetí:** Logy obsahují ID relace, segmentu a jobu, ne text ani tokeny. CI běží testy, lint, prettier, build a coverage na Node 20 i 22. Nové testy pokrývají chybový stav a redakci logu.
+**Kritéria přijetí:** Logy obsahují ID relace, segmentu a jobu, ne text ani tokeny. CI běží testy, typecheck, lint, prettier a build na Node 20 i 22, coverage na Node 22. Nové testy pokrývají chybový stav a redakci logu.
 
 **Mimo rozsah:** externí monitoring, alerting, tracing infrastruktura.
 
 **Odhad:** S.
+
+**Stav:** hotovo 27. 10. 2026, commit `8104755`. Request ring 200 záznamů, redakce, CI gates; 271 testů v `main`.
 
 ### I7.3 Retence a obnova
 
@@ -372,5 +378,6 @@ Pravidlo pro `src/main.ts`: v jedné vlně ho mění nejvýše jedna fáze. Kdy�
 
 ## 9. Historie
 
+- **1.2, 27. 10. 2026:** hotové I4.1, I4.4, I7.2 a protokol I3.1; oprava `pack:device` pro vnořené adresáře `src/`.
 - **1.1, 27. 10. 2026:** hotové I4.0a, I4.0b, I3.2 a I7.1; doplněn stav u fází a rozhodnutí o dalším postupu.
 - **1.0, 27. 10. 2026:** první verze. Vychází ze stavu po I3, rozděluje I3 dokončení a etapy I4 až I7 na fáze, určuje vlny, vlastnictví souborů a rozhodovací body.

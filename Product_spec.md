@@ -1,8 +1,8 @@
 # Product spec — Even G2: rozhovory, paměť a pracovní kontext
 
-Verze: 0.2 · Datum: 27. 10. 2026 · Stav: MVP implementováno, ověření na hardwaru otevřené
+Verze: 0.3 · Datum: 27. 10. 2026 · Stav: MVP a fáze I4.1, I4.4, I7.2 implementovány, ověření na hardwaru otevřené
 
-Výchozí implementace: `beast-g2` 0.5.0, commit `49484c2`.
+Výchozí implementace: `beast-g2` 0.7.0, větev `main` k 27. 10. 2026.
 
 Tento dokument obsahuje kritické review původního návrhu a jeho opravenou podobu. Požadavky popisují cílové chování; část MVP je implementovaná a její skutečný stav uvádí sekce 0. Číselné limity a metriky jsou navržené výchozí hodnoty pro pilot; nejsou výsledkem měření ani schváleným závazkem. Prováděcí plán etap a fází včetně rozdělení práce mezi agenty je v [ROADMAP.md](ROADMAP.md).
 
@@ -16,11 +16,13 @@ MVP z etap I1–I3 je implementované a lokálně ověřené. Následující tab
 | --- | --- | --- | --- |
 | Serverové relace, segmenty, finální přepis, revize, mezery, export, smazání (I1) | Hotovo | 121 testů, 90s WAV jako tři segmenty, obnova jobu po restartu, smazání audia po přepisu | Ověření proti živému Beast STT |
 | Souhrny a preparation snapshoty (I2) | Hotovo | 144 testů, migrace v2, HTTP tok create → end → summary → preparation, stale při nové mezeře | Kvalita souhrnů na živém modelu, lidské hodnocení |
-| Klientské UI relací a G2 capture (I3) | Hotovo, ověřeno v simulátoru | 198 testů, lint, Prettier, build; prohlížeč proti demo gateway; EvenHub simulátor: tap z brýlí spustí poslech a tečou PCM eventy | Skutečný mikrofon G2, zamčený telefon, výpadky BLE, výdrž baterie |
-| Živá pomoc (Ask, hinty, Captions) | Původní prototyp, beze změny | Testy controlleru a continuous režimu | Kvalita a četnost hintů, Captions režim |
-| Paměť, hledání, pracovní kontext | Neimplementováno | – | Etapy I4–I6 v [ROADMAP.md](ROADMAP.md) |
+| Klientské UI relací a G2 capture (I3) | Hotovo, ověřeno v simulátoru | 198 testů při dokončení I3, lint, Prettier, build; prohlížeč proti demo gateway; EvenHub simulátor: tap z brýlí spustí poslech a tečou PCM eventy | Skutečný mikrofon G2, zamčený telefon, výpadky BLE, výdrž baterie |
+| Hledání v přepisech (I4.1) | Hotovo | 271 testů v `main`, FTS5 s `remove_diacritics 2`, HTTP route a panel; browser smoke proti demo gateway | Sémantické hledání, jiné jazyky než česká a anglická diakritika |
+| Captions režim (I4.4) | Hotovo v kódu | Testy controlleru a panelu, žádné volání session API, text se po ukončení vymaže | Ověření na G2, výpadky BLE a mikrofonu |
+| Observabilita a CI (I7.2) | Hotovo | Request ring 200 záznamů, redakce tokenů a textu, CI gates na Node 20 a 22 | Vzdálené GitHub Actions neběžely |
+| Paměť a pracovní kontext | Neimplementováno | – | Etapy I4.3, I5, I6 v [ROADMAP.md](ROADMAP.md) |
 
-Důkazy jsou z lokálního běhu na Node 20.18 (`better-sqlite3` je v tomto checkoutu kompilovaný pro Node 20) a z prohlížeče proti loopback demo gateway. Simulátor `@evenrealities/evenhub-simulator` ověřil doručení tap gesta z brýlí do aplikace; neověřuje kvalitu mikrofonu ani chování při zamčeném telefonu. Nasazení, HTTPS a reálné Beast inferenční volání zůstávají otevřené.
+Důkazy jsou z lokálního běhu na Node 20.18 (`better-sqlite3` je v tomto checkoutu kompilovaný pro Node 20) a z prohlížeče proti loopback demo gateway. Celkem 271 testů k 27. 10. 2026. Simulátor `@evenrealities/evenhub-simulator` ověřil doručení tap gesta z brýlí do aplikace; neověřuje kvalitu mikrofonu ani chování při zamčeném telefonu. Captions a hledání jsou ověřené testy a v prohlížeči, ne na brýlích. Nasazení, HTTPS a reálné Beast inferenční volání zůstávají otevřené.
 
 ## 1. Produktové rozhodnutí
 
@@ -366,5 +368,6 @@ Při další iteraci zachovat ID požadavků a rozhodnutí. U každé změny uv�
 
 ### Historie
 
+- **0.3 — 27. 10. 2026:** fáze I4.1 (fulltext nad přepisy), I4.4 (Captions bez ukládání) a I7.2 (observabilita, request ring, CI brány); stav testů 271, stav u fází v ROADMAP.md.
 - **0.2 — 27. 10. 2026:** stav implementace MVP (I1–I3), tabulka stavu FR-01 až FR-12, implementované moduly, skutečné limity a retence, stav otevřených rozhodnutí, odkazy na ROADMAP.md.
 - **0.1 — 26. 10. 2026:** kritické review původního návrhu; zúžení MVP, oddělení přepisu a nápověd, smlouva potvrzení/obnovy, revize a zdrojové reference, retence a mazání, měřitelný pilot a návaznost na starší backlog.

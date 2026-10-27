@@ -54,7 +54,8 @@ Rules:
 
 - The first module whose `match()` returns true handles the request. Order in
   `routes/index.mjs` is therefore significant; append new modules after existing ones
-  unless a specific path must win.
+  unless a specific path must win. `routes/search.mjs` is the one exception: it must stay
+  before `routes/sessions.mjs`, which would read `search` as a session id.
 - A module that matches owns the response completely: status code, headers, body shape and
   body limits. Do not fall through after writing.
 - `handle()` may throw `ApiError`; the gateway maps it to the status and code. Do not catch
@@ -67,7 +68,7 @@ Rules:
 A migration module is a `.mjs` file in `server/sessions/migrations/` that exports:
 
 ```js
-export const version = 3 // positive integer, unique, ascending in the registry
+export const version = 4 // positive integer, unique, ascending in the registry
 export const sql = `...` // one or more SQLite statements, applied in one transaction
 ```
 
@@ -81,11 +82,11 @@ and a new version instead.
 
 | Path | Owner |
 | --- | --- |
-| `server/gateway.mjs`, `server/sessions/http.mjs`, `server/sessions/db.mjs`, `server/sessions/index.mjs` | I4.0 only. Frozen after the seams land. |
+| `server/gateway.mjs`, `server/sessions/http.mjs`, `server/sessions/db.mjs`, `server/sessions/index.mjs` | I4.0 only. Frozen after the seams land; I7.2 may change logging in `gateway.mjs` without changing routes or responses. |
 | `server/sessions/routes/<domain>.mjs` | The phase that owns the domain. |
 | `server/sessions/migrations/<version>-<name>.mjs` | The phase that owns the domain. |
 | `server/sessions/service.mjs`, `repository.mjs`, `summary.mjs` | Existing session core; extend only for core changes. |
-| `src/session-api.ts`, `src/sessions.ts` | I4.0 barrel; new domains add files under `src/session-api/` and `src/sessions/panels/`. |
+| `src/session-api.ts`, `src/sessions.ts` | I4.0 barrel; new domains add files under `src/session-api/` and `src/sessions/panels/`. A new client domain extends the class chain in `session.ts` with one import and one `extends`. |
 
 Two phases may edit the same file only when the table gives them the same owner. Otherwise
 the later phase adds a new file and registers it.

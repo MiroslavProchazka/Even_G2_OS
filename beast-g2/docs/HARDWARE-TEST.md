@@ -17,13 +17,13 @@ Cíle: **FR-03** (dlouhá řeč se dělí na zpracovatelné segmenty), **FR-06**
 
 - **Brýle:** Even G2, nabité; zapiš procenta baterie před a po.
 - **Telefon:** Even App **2.2.10+** (`min_app_version`), SDK **0.0.16** (`min_sdk_version`, závislost `@evenrealities/even_hub_sdk`). Skutečnou verzi Even App opiš z obrazovky; dokument ji nepředpokládá.
-- **Balíček:** `beast-g2-0.6.0.ehpk`, `package_id` `com.prochmi.beastg2`, verze `0.6.0` z `app.json`. V repozitáři není (`*.ehpk` je gitignored), musíš ho sestavit z `beast-g2/`:
+- **Balíček:** `beast-g2-0.7.0.ehpk`, `package_id` `com.prochmi.beastg2`, verze `0.7.0` z `app.json`. V repozitáři není (`*.ehpk` je gitignored), musíš ho sestavit z `beast-g2/`:
 
 ```sh
 npm run pack:device -- https://llm.corp.sldev.cz/v1
 ```
 
-  Vznikne `app.device.json` (gitignored) a `beast-g2/beast-g2-0.6.0.ehpk`. Skript ověří manifest a do whitelistu zapíše jen předané originy.
+  Vznikne `app.device.json` (gitignored) a `beast-g2/beast-g2-0.7.0.ehpk`. Skript ověří manifest a do whitelistu zapíše jen předané originy.
 - **Uložené relace:** vyžadují transport **Custom gateway**, protože `/api/sessions` obsluhuje Node gateway, ne Beast. Do whitelistu přidej i její origin, jinak WebView požadavky zablokuje a Conversations zůstanou nedostupné:
 
 ```sh
@@ -160,7 +160,7 @@ Každý krok má čtyři řádky: co udělat, co pozorovat, kritérium PASS/FAIL
 | Telefon: model, OS | |
 | Even App | |
 | SDK | 0.0.16 |
-| Balíček | beast-g2-0.6.0.ehpk |
+| Balíček | beast-g2-0.7.0.ehpk |
 | `buildId` z Diagnostics exportu | |
 | Provider profil | Direct Beast / Custom gateway, chat, speech, origin |
 | Baterie brýlí start / konec | |

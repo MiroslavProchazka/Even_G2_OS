@@ -44,6 +44,8 @@ Rules:
 | --- | --- |
 | `src/sessions/panels/index.ts` | `SessionPanel`, `registerSessionPanel`, `mountSessionPanels`, built-in registrations |
 | `src/sessions/panels/new-session.ts` | the "new session" form and its validation |
+| `src/sessions/panels/search.ts` | full-text search input, debounced query, results and selection through the host |
+| `src/sessions/panels/captions.ts` | Captions start/stop controls; it never creates a session |
 | `src/sessions/panels/dom.ts` | the `el` and `button` helpers shared by the section and its panels |
 
 A panel is `{ id, mount(section, deps) }`. `mount` receives the element it may fill and the same `SessionsDeps` that
@@ -52,6 +54,7 @@ A panel is `{ id, mount(section, deps) }`. `mount` receives the element it may f
 - `host.gate(element, enabled)` registers a control so the host disables it while a session action runs.
 - `host.error(text)` writes the section alert line.
 - `host.create(values)` creates or starts a session, refreshes the list, selects it and resolves true when it exists.
+- `host.select(id)` opens an existing session by id, so a search hit can reuse the host's list and detail.
 
 Panels keep no module state. The host owns busy state, the status line, the list and the selection, so two panels never
 read each other. Registering the same `id` twice replaces the earlier panel, so a reload cannot mount duplicates.

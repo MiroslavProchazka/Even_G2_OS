@@ -1,6 +1,6 @@
 {
   "name": "beast-g2",
-  "version": "0.5.0",
+  "version": "0.7.0",
   "description": "Even Realities G2 voice client for a self-hosted Beast service: glasses microphone, Whisper transcription, chat model and glasses display.",
   "private": true,
   "type": "module",

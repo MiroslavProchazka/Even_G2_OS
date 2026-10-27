@@ -33,11 +33,16 @@ All notable changes to this repository are documented here. The format follows [
 - One short session status line on the glasses (`REC 00:12 S3`, `PAUSED S5`, `ERR MIC`).
 - `ROADMAP.md`: staged plan for I3 completion and I4 to I7, with per-agent phases, file ownership and parallel waves.
 - `Product_spec.md` version 0.2: implementation status for FR-01 to FR-12, implemented modules and the real limits and retention.
+- Full-text search over final transcripts: FTS5 with `remove_diacritics 2`, `GET /api/sessions/search`, a typed `SessionClient.search`, and a Conversations search panel that opens the selected session.
+- Captions mode that shows live text on the glasses and the phone without creating a session, archiving audio or calling the session API.
+- Content-free gateway request log with a bounded 200-entry ring, `server/log.mjs`, request IDs, durations and error codes; no tokens, query strings, transcript text or provider bodies.
+- `docs/HARDWARE-TEST.md`: a repeatable G2 protocol with 20 annotated Czech utterances, a 30 to 60 minute session, pause, locked phone, BLE and network drops, and a results template.
+- CI now runs typecheck, lint and the formatting check on Node 20.18 and 22; coverage stays on Node 22.
 
 ### Changed
 
 - Root `README.md` rewritten as a project overview. The client keeps its own release notes.
-- `app.json` version is now 0.6.0 for the stored-session build.
+- `app.json` version is now 0.7.0 for the search, captions and observability build.
 - `app.json` declares English only, because the packer rejects `cs`; Czech remains a speech language option in the settings.
 - CI actions are pinned to commit SHAs, and the client build is checked by ESLint and Prettier.
 - `SECURITY.md` now states exactly which client data is kept in memory and which settings are saved.
