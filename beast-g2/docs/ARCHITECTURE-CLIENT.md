@@ -17,10 +17,11 @@ import a domain file directly.
 | `src/session-api/search.ts` | transcript search types and `SearchEndpoints` |
 | `src/session-api/qa.ts` | question, citation and evidence types, `QaEndpoints` |
 | `src/session-api/memory.ts` | memory item, status and evidence types, `MemoryEndpoints`; per-session and kept-memory reads |
+| `src/session-api/briefing.ts` | briefing source, item and citation types, `BriefingEndpoints`; the cross-session briefing |
 
-Domains compose by inheritance: `SessionClient extends MemoryEndpoints extends QaEndpoints extends SearchEndpoints extends
-SummaryEndpoints extends SessionClientBase`. Every domain class takes the settings provider from the base and calls `this.json`,
-`this.post` or `this.request`, so the bearer token, timeouts, tracing and error mapping stay in one place.
+Domains compose by inheritance: `SessionClient extends BriefingEndpoints extends MemoryEndpoints extends QaEndpoints extends
+SearchEndpoints extends SummaryEndpoints extends SessionClientBase`. Every domain class takes the settings provider from the base and
+calls `this.json`, `this.post` or `this.request`, so the bearer token, timeouts, tracing and error mapping stay in one place.
 
 To add a domain:
 
@@ -52,6 +53,7 @@ Rules:
 | `src/sessions/panels/captions.ts` | Captions start/stop controls; it never creates a session |
 | `src/sessions/panels/qa.ts` | question form, evidence badge and citation chips |
 | `src/sessions/panels/memory.ts` | memory proposals, approval, rejection, replacement, source opening and the read-only kept list; explicit retrieval only |
+| `src/sessions/panels/briefing.ts` | up to three session checkboxes and the cross-session briefing: verified and unverified sources, grouped claims and citation chips; the gateway does the aggregation |
 | `src/sessions/panels/hints.ts` | opt-in hint toggle, spacing, pause and local feedback counters |
 | `src/sessions/panels/dom.ts` | the `el` and `button` helpers shared by the section and its panels |
 
