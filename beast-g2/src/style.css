@@ -249,3 +249,262 @@ input[type='checkbox'] {
   border-radius: 8px;
   padding: 12px;
 }
+
+.sessions {
+  grid-column: 1 / -1;
+  border-top: 1px solid #303a31;
+  padding-top: 24px;
+}
+.sessions h3,
+.sessions h4,
+.sessions h5 {
+  margin: 18px 0 6px;
+}
+.sessions h4 {
+  font-size: 15px;
+}
+.sessions h5 {
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #b3e887;
+}
+.sessions-columns {
+  display: grid;
+  grid-template-columns: minmax(240px, 1fr) minmax(0, 2fr);
+  gap: 32px;
+  margin-top: 20px;
+}
+.sessions-list-pane,
+.session-detail {
+  min-width: 0;
+}
+.sessions-list {
+  list-style: none;
+  padding: 0;
+  margin: 12px 0;
+  display: grid;
+  gap: 8px;
+}
+.session-row {
+  width: 100%;
+  display: grid;
+  gap: 4px;
+  text-align: left;
+  background: transparent;
+  color: #edf3e8;
+  border: 1px solid #303a31;
+  border-radius: 10px;
+  padding: 12px;
+}
+.session-row-selected {
+  border-color: #b3e887;
+  background: #1b221b;
+}
+.session-row-name {
+  font-weight: 550;
+  overflow-wrap: anywhere;
+}
+.session-row-meta,
+.session-meta,
+.session-action-meta {
+  font-size: 12px;
+  color: #a8b4aa;
+  overflow-wrap: anywhere;
+}
+.sessions-empty,
+.sessions-placeholder {
+  font-size: 13px;
+  color: #a8b4aa;
+}
+.sessions-status {
+  min-height: 1.2em;
+  font-size: 12px;
+  color: #b3e887;
+}
+.sessions-error {
+  min-height: 1.2em;
+  font-size: 12px;
+  color: #ffc0ac;
+  overflow-wrap: anywhere;
+}
+.session-detail {
+  overflow-wrap: anywhere;
+}
+.session-detail-title {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+.session-detail-title h3 {
+  margin: 0;
+}
+.session-badge {
+  display: inline-block;
+  border: 1px solid #3d4a3b;
+  border-radius: 999px;
+  padding: 2px 8px;
+  color: #b3e887;
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.session-badge-pending {
+  color: #ffd58a;
+  border-color: #6a5a35;
+}
+.session-badge-failed,
+.session-badge-stale {
+  color: #ffc0ac;
+  border-color: #6a4035;
+}
+.session-section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+.session-note {
+  white-space: pre-wrap;
+}
+.session-turns {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  gap: 2px;
+}
+.session-turn {
+  border-left: 2px solid transparent;
+  padding: 6px 8px;
+  white-space: pre-wrap;
+  transition:
+    background 150ms ease,
+    border-color 150ms ease;
+}
+.session-turn-time {
+  margin-right: 8px;
+  color: #b3e887;
+  font:
+    12px ui-monospace,
+    monospace;
+}
+.session-turn-origin {
+  margin-left: 8px;
+  color: #a8b4aa;
+  font-size: 10px;
+  text-transform: uppercase;
+}
+.session-turn-cited {
+  border-left-color: #b3e887;
+  background: #1b221b;
+}
+.session-gap-list,
+.session-summary-list,
+.session-preparation-citations {
+  margin: 6px 0;
+  padding-left: 20px;
+}
+.session-gap,
+.session-summary-item {
+  color: #d4dfce;
+}
+.session-summary-item p {
+  margin: 4px 0;
+}
+.session-summary-status,
+.session-poll {
+  font-size: 12px;
+  color: #a8b4aa;
+}
+.session-stale,
+.session-warning,
+.session-error-detail {
+  font-size: 12px;
+  color: #ffc0ac;
+  overflow-wrap: anywhere;
+}
+.session-notice {
+  border: 1px solid #6a5a35;
+  border-radius: 8px;
+  padding: 10px 12px;
+  margin: 10px 0;
+}
+.session-notice-text {
+  margin: 0 0 8px;
+  color: #ffd58a;
+  font-size: 12px;
+}
+.session-citations {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin: 6px 0;
+}
+.session-citation {
+  border: 1px solid #3d4a3b;
+  border-radius: 999px;
+  background: transparent;
+  color: #d4dfce;
+  padding: 3px 7px;
+  font-size: 11px;
+}
+.session-citation-static {
+  color: #a8b4aa;
+}
+.session-preparation-focus {
+  font-size: 13px;
+}
+.sessions textarea {
+  width: 100%;
+  min-height: 60px;
+  background: #1b221b;
+  color: #edf3e8;
+  border: 1px solid #3d4a3b;
+  border-radius: 8px;
+  padding: 10px;
+  font: inherit;
+  font-size: 14px;
+}
+.sessions textarea:focus {
+  outline: 2px solid #b3e887;
+  outline-offset: 3px;
+}
+.session-edit-item {
+  min-width: 0;
+  border: 1px solid #303a31;
+  border-radius: 10px;
+  padding: 12px;
+  margin: 12px 0;
+}
+.session-edit-item legend {
+  padding: 0 6px;
+  color: #ccd8c6;
+  font-size: 12px;
+}
+.session-edit-remove {
+  margin-top: 8px;
+  color: #ffc0ac;
+}
+.sessions-new {
+  margin-top: 24px;
+  border-top: 1px solid #303a31;
+  padding-top: 12px;
+}
+.sessions-new summary {
+  cursor: pointer;
+  padding: 12px 0;
+  color: #ccd8c6;
+}
+@media (max-width: 760px) {
+  .sessions-columns {
+    grid-template-columns: 1fr;
+    gap: 24px;
+  }
+}
+.sessions input[type='checkbox'] {
+  width: auto;
+  margin-right: 8px;
+}
