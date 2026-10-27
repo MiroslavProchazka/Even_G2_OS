@@ -186,7 +186,7 @@ test('migration 3 backfills turns stored before the index existed', () => {
   const results = searchSessions(repo, { query: 'zrusit' })
   assert.equal(results.length, 1)
   assert.equal(results[0].turnId, turn.id)
-  assert.equal(db.prepare('SELECT MAX(version) AS version FROM schema_migrations').get().version, 4)
+  assert.equal(db.prepare('SELECT MAX(version) AS version FROM schema_migrations').get().version, 5)
   db.close()
 })
 

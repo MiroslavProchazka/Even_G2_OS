@@ -25,6 +25,7 @@ instance.
 | `summary_citations` | Exact turn IDs, revisions, time ranges and quoted text used by a summary. |
 | `action_candidates` | Proposed actions with explicit owner/deadline or null, original relative wording and source citations. |
 | `preparations` | Snapshot of a selected past summary for a target session, including source session, date and citations. |
+| `memory_items` | Claims taken from one concrete turn and revision, with kind, source quote, review status and evidence state. |
 
 Audio is written under `SESSION_DATA_DIR/audio/<session-id>/`. The database defaults
 to `SESSION_DATA_DIR/sessions.sqlite`. Files are created with mode `0600` and the
@@ -57,7 +58,7 @@ All routes require `Authorization: Bearer <gateway-token>`.
 | `POST /api/sessions/:id/qa` | Ask one question about the session. Body: `question`. Returns an answer with citations or `evidence: "insufficient"`. |
 | `POST /api/sessions` | Create a session. Body: `name`, optional `language` (`cs`, `en`, `auto`), `source` (`import`, `g2`), `goal`, `prep`, `timezone`, `retentionDays`. |
 | `GET /api/sessions/:id` | Session detail with segments, turns, gaps, jobs, summaries and the latest preparation. |
-| `DELETE /api/sessions/:id` | Delete the session, its indexes, revisions and stored audio. Idempotent. |
+| `DELETE /api/sessions/:id` | Delete the session, its indexes, revisions and stored audio. Idempotent. `?keepMemory=1` keeps derived memory items with `evidenceState: "lost"`. |
 | `POST /api/sessions/:id/start` | Start listening. Body: `writerId`. |
 | `POST /api/sessions/:id/pause` | Pause listening; accepted work continues. |
 | `POST /api/sessions/:id/resume` | Resume a paused session with `writerId`. |
@@ -73,6 +74,11 @@ All routes require `Authorization: Bearer <gateway-token>`.
 | `POST /api/sessions/:id/preparation` | Select a past summary as preparation. Body: `sourceSummaryId`, optional `focus`. |
 | `GET /api/sessions/:id/preparation` | Latest preparation for the target session, with source date and citations. |
 | `GET /api/sessions/:id/preparations` | Preparation history for the target session. |
+| `GET /api/sessions/:id/memory?status=&query=` | Approved memory items by default; `status=all` is for the review panel. |
+| `POST /api/sessions/:id/memory` | Propose one memory item. Body: `turnId`, `revision`, `kind`, `text`. |
+| `GET /api/sessions/:id/memory/:memoryId` | One approved memory item. |
+| `PATCH /api/sessions/:id/memory/:memoryId` | Approve or reject a proposed item. Body: `status`. |
+| `POST /api/sessions/:id/memory/:memoryId/supersede` | Replace an item with a new proposal. Body: `text`, optional `kind`. |
 | `GET /api/sessions/:id/export?format=json` | Full export with `formatVersion`, IDs, revisions, gaps, completeness, summaries and preparations. |
 | `GET /api/sessions/:id/export?format=markdown` | Human-readable export with source links and completeness. |
 
@@ -152,7 +158,33 @@ Not guaranteed: the support check is lexical, not semantic, so a paraphrase that
 with its cited turn is reported as `insufficient` instead of being shown as grounded. Candidate passages
 are the best 50 hits of the shared index, so a very common question can rank another session's passages
 above this session's. Answers are not verified facts, not cross-session synthesis and not external research.
-There is no voice input and no memory write in this phase.
+There is no voice input. Memory items are proposed only through the memory routes below.
+
+## Memory items
+
+A memory item is one claim taken from one concrete transcript turn and its revision. The
+model may only propose it; the user approves or rejects it in the phone panel. A proposal is
+never returned by default retrieval and is never injected into chat, hints or a summary
+automatically. `docs/MEMORY.md` has the full contract.
+
+`POST /api/sessions/:id/memory` stores a `proposed` item with `sourceQuote` copied from the
+turn text. The turn must belong to the session and `revision` must be its current revision:
+a foreign turn or an unknown session returns `404`, a stale revision returns `409
+stale_revision`, a bad kind returns `400 invalid_kind` and text outside 1-500 characters
+returns `400 invalid_text`.
+
+`PATCH` accepts only `approved` or `rejected`. Repeating the same status is idempotent;
+any other transition, including approving a rejected item, returns `409 invalid_transition`.
+`POST .../supersede` creates a new `proposed` item from the same turn and quote, and marks the
+old row `superseded` in the same transaction. Both rows stay readable.
+
+`GET /api/sessions/:id/memory` returns `approved` items. `status=proposed`, `rejected`,
+`superseded` or `all` is for the panel. `query` is folded for Czech diacritics and matched as a
+substring of the item text. Another session's items are never returned.
+
+Deleting the source session deletes its memory items. `DELETE /api/sessions/:id?keepMemory=1`
+keeps them with `sourceDeleted: true` and `evidenceState: "lost"`, because the turn they quote no
+longer exists. The retention sweep follows the default rule and removes them with the session.
 
 ## Summaries and preparation
 

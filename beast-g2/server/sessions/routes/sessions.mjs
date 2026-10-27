@@ -33,7 +33,7 @@ export async function handle({ req, res, sessionId, action, sub, query, service,
   if (!action) {
     if (method === 'GET') return sendJson(res, 200, { ...service.getSessionDetail(sessionId), requestId })
     if (method === 'DELETE') {
-      service.deleteSession(sessionId)
+      service.deleteSession(sessionId, { keepMemory: query.get('keepMemory') === '1' })
       res.writeHead(204)
       return res.end()
     }
