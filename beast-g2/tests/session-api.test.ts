@@ -95,7 +95,11 @@ test('the public barrel keeps the whole client surface on one prototype', () => 
     'updateSummary',
     'createPreparation',
     'preparation',
-    'preparations'
+    'preparations',
+    'memoryForSession',
+    'proposeMemory',
+    'setMemoryStatus',
+    'supersedeMemory'
   ]
   for (const name of methods) assert.equal(typeof client[name], 'function', `${name} is missing from the barrel contract`)
 })
@@ -139,4 +143,67 @@ test('a preparation read through the barrel keeps the preparation type', async (
   stub(t, async () => Response.json({ preparation: null }))
   const result: { preparation: SessionPreparation | null } = await new SessionClient(() => settings).preparation('ses_1')
   assert.equal(result.preparation, null)
+})
+
+test('a memory read through the barrel sends the status and query filters', async (t) => {
+  let url = ''
+  stub(t, async (input) => {
+    url = String(input)
+    return Response.json({ items: [] })
+  })
+  const result = await new SessionClient(() => settings).memoryForSession('ses_1', { status: 'approved', query: 'budget plan' })
+  assert.deepEqual(result.items, [])
+  assert.equal(url, 'https://gateway.example.com/api/sessions/ses_1/memory?status=approved&query=budget+plan')
+})
+
+test('a memory proposal through the barrel posts the exact turn id, revision, kind and claim', async (t) => {
+  let url = '',
+    method = '',
+    body = ''
+  stub(t, async (input, init) => {
+    url = String(input)
+    method = init!.method ?? 'GET'
+    body = String(init!.body ?? '')
+    return Response.json({ item: { id: 'mem_1' } })
+  })
+  const result = await new SessionClient(() => settings).proposeMemory('ses_1', { turnId: 'trn_2', revision: 3, kind: 'commitment', text: 'Ship the client by Friday.' })
+  assert.equal(result.item.id, 'mem_1')
+  assert.equal(url, 'https://gateway.example.com/api/sessions/ses_1/memory')
+  assert.equal(method, 'POST')
+  assert.deepEqual(JSON.parse(body), { turnId: 'trn_2', revision: 3, kind: 'commitment', text: 'Ship the client by Friday.' })
+})
+
+test('a memory status change through the barrel patches only the status', async (t) => {
+  let url = '',
+    method = '',
+    body = ''
+  stub(t, async (input, init) => {
+    url = String(input)
+    method = init!.method ?? 'GET'
+    body = String(init!.body ?? '')
+    return Response.json({ item: { id: 'mem_1', status: 'approved' } })
+  })
+  const result = await new SessionClient(() => settings).setMemoryStatus('ses_1', 'mem_1', 'approved')
+  assert.equal(result.item.status, 'approved')
+  assert.equal(url, 'https://gateway.example.com/api/sessions/ses_1/memory/mem_1')
+  assert.equal(method, 'PATCH')
+  assert.deepEqual(JSON.parse(body), { status: 'approved' })
+})
+
+test('a memory replacement through the barrel posts the new claim and optional kind', async (t) => {
+  let url = '',
+    method = '',
+    body = ''
+  stub(t, async (input, init) => {
+    url = String(input)
+    method = init!.method ?? 'GET'
+    body = String(init!.body ?? '')
+    return Response.json({ item: { id: 'mem_2' }, superseded: { id: 'mem_1' } })
+  })
+  const result = await new SessionClient(() => settings).supersedeMemory('ses_1', 'mem_1', { text: 'Ship the client by Thursday.', kind: 'commitment' })
+  assert.equal(result.item.id, 'mem_2')
+  assert.equal(result.superseded.id, 'mem_1')
+  assert.equal(url, 'https://gateway.example.com/api/sessions/ses_1/memory/mem_1/supersede')
+  assert.equal(method, 'POST')
+  assert.deepEqual(JSON.parse(body), { text: 'Ship the client by Thursday.', kind: 'commitment' })
 })
