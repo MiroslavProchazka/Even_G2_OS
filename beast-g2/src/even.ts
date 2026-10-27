@@ -3,12 +3,17 @@ import { diagnostics } from './diagnostics'
 import { waitForEvenAppBridge, AudioInputSource, CreateStartUpPageContainer, TextContainerProperty, TextContainerUpgrade, OsEventTypeList, type EvenHubEvent } from '@evenrealities/even_hub_sdk'
 export type Gesture = 'tap' | 'exit' | 'previous' | 'next' | 'interrupt' | 'resume'
 export function gesture(event: EvenHubEvent): Gesture | undefined {
-  const sys = event.sysEvent?.eventType
+  const sysEvent = event.sysEvent
+  const sys = sysEvent?.eventType
   if (sys === OsEventTypeList.SYSTEM_EXIT_EVENT || sys === OsEventTypeList.ABNORMAL_EXIT_EVENT || sys === OsEventTypeList.FOREGROUND_EXIT_EVENT) return 'interrupt'
   if (sys === OsEventTypeList.FOREGROUND_ENTER_EVENT) return 'resume'
+  // A touch from the glasses or the ring arrives as a sysEvent that names only its source, because protobuf omits the zero
+  // CLICK_EVENT. Without this fallback every tap on the glasses is dropped.
+  const source = sysEvent?.eventSource
+  const sysType = sys ?? (source ? OsEventTypeList.CLICK_EVENT : undefined)
   // Only existing text/list envelopes may normalize omitted protobuf zero into a tap.
   const input = event.textEvent ?? event.listEvent
-  const type = input ? (input.eventType ?? 0) : sys
+  const type = input ? (input.eventType ?? 0) : sysType
   if (type === 0) return 'tap'
   if (type === 3) return 'exit'
   if (type === 1) return 'previous'

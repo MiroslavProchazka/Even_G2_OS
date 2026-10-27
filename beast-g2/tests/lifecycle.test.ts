@@ -162,6 +162,18 @@ test('SDK startup rejection unsubscribes and audio events never normalize to tap
   assert.equal(cleaned, true)
   assert.equal(gesture({ audioEvent: {} } as any), undefined)
 })
+
+test('a touch sysEvent without an event type is a tap', () => {
+  // The simulator and the glasses send only the source for a click, because protobuf omits the zero CLICK_EVENT.
+  assert.equal(gesture({ sysEvent: { eventSource: 1 } } as any), 'tap')
+  assert.equal(gesture({ sysEvent: { eventSource: 2 } } as any), 'tap')
+  assert.equal(gesture({ sysEvent: { eventSource: 3 } } as any), 'tap')
+  assert.equal(gesture({ sysEvent: { eventSource: 0 } } as any), undefined)
+  assert.equal(gesture({ sysEvent: {} } as any), undefined)
+  assert.equal(gesture({ sysEvent: { eventType: 3 } } as any), 'exit')
+  assert.equal(gesture({ sysEvent: { eventType: 5 } } as any), 'interrupt')
+  assert.equal(gesture({ sysEvent: { eventType: 4 } } as any), 'resume')
+})
 test('manual microphone stop failure blocks restart until successful explicit cancel', async () => {
   let fail = true,
     starts = 0
