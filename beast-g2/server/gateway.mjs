@@ -5,6 +5,7 @@ import path from 'node:path'
 import { timingSafeEqual, randomUUID } from 'node:crypto'
 import { ApiError } from './errors.mjs'
 import { readBody, sendJson } from './http-util.mjs'
+import { createRequestLog } from './log.mjs'
 import { routeSessions } from './sessions/http.mjs'
 import { transcribeAudio } from './stt.mjs'
 
@@ -226,6 +227,7 @@ export function createGateway(config, fetchImpl = fetch) {
   let active = 0,
     windowStart = 0,
     windowCount = 0
+  const requestLog = config.requestLog ?? createRequestLog({ write: config.log })
   const rateLimit = config.rateLimit ?? 30,
     rateWindowMs = config.rateWindowMs ?? 60000
   const allowRequest = () => {
@@ -236,31 +238,36 @@ export function createGateway(config, fetchImpl = fetch) {
     }
     return ++windowCount <= rateLimit
   }
-  return http.createServer(async (req, res) => {
+  const server = http.createServer(async (req, res) => {
     const id = randomUUID()
     res.setHeader('X-Request-Id', id)
     res.setHeader('Cache-Control', 'no-store')
     res.setHeader('X-Content-Type-Options', 'nosniff')
     const requestAt = Date.now()
     const stage = req.url?.startsWith('/api/transcribe') ? 'stt' : req.url?.startsWith('/api/chat') ? 'chat' : req.url?.startsWith('/api/sessions') ? 'sessions' : 'health'
-    res.on('finish', () => {
-      try {
-        config.log?.({ event: 'request.finished', requestId: id, stage, status: res.statusCode, durationMs: Date.now() - requestAt })
-      } catch {
-        /* Logging must not break a response. */
-      }
-    })
-    res.on('close', () => {
-      if (!res.writableFinished) {
-        try {
-          config.log?.({ event: 'request.disconnected', requestId: id, stage, durationMs: Date.now() - requestAt })
-        } catch {
-          /* Logging must not break cleanup. */
-        }
-      }
-    })
+    let failure
+    let logged = false
+    const logRequest = (code) => {
+      if (logged) return
+      logged = true
+      requestLog.record({
+        requestId: id,
+        method: req.method,
+        route: req.url,
+        status: res.headersSent ? res.statusCode : 0,
+        durationMs: Date.now() - requestAt,
+        code: code ?? failure,
+        stage
+      })
+    }
+    res.on('finish', () => logRequest())
+    res.on('close', () => logRequest(res.writableFinished ? undefined : (failure ?? 'disconnected')))
+    const reject = (status, code, message) => {
+      failure = code
+      return message === undefined ? sendJson(res, status, { error: code, requestId: id }) : sendJson(res, status, { error: code, message, requestId: id })
+    }
     const origin = req.headers.origin
-    if (origin && !config.origins.includes(origin)) return sendJson(res, 403, { error: 'origin_denied', message: 'Origin is not in ALLOWED_ORIGINS.', requestId: id })
+    if (origin && !config.origins.includes(origin)) return reject(403, 'origin_denied', 'Origin is not in ALLOWED_ORIGINS.')
     if (origin) {
       res.setHeader('Access-Control-Allow-Origin', origin)
       res.setHeader('Vary', 'Origin')
@@ -273,10 +280,10 @@ export function createGateway(config, fetchImpl = fetch) {
       })
       return res.end()
     }
-    if (!authorized(req.headers.authorization, config.token)) return sendJson(res, 401, { error: 'unauthorized', message: 'Invalid gateway token.', requestId: id })
+    if (!authorized(req.headers.authorization, config.token)) return reject(401, 'unauthorized', 'Invalid gateway token.')
     if (!allowRequest()) {
       res.setHeader('Retry-After', String(Math.ceil(rateWindowMs / 1000)))
-      return sendJson(res, 429, { error: 'rate_limited', message: 'Too many requests. Retry later.', requestId: id })
+      return reject(429, 'rate_limited', 'Too many requests. Retry later.')
     }
     const route = new URL(req.url, 'http://localhost').pathname
     if (req.method === 'GET' && route === '/api/health')
@@ -290,14 +297,16 @@ export function createGateway(config, fetchImpl = fetch) {
         requestId: id
       })
     if (route === '/api/sessions' || route.startsWith('/api/sessions/')) {
-      if (!config.sessions) return sendJson(res, 404, { error: 'sessions_disabled', message: 'Stored sessions are not enabled.', requestId: id })
+      if (!config.sessions) return reject(404, 'sessions_disabled', 'Stored sessions are not enabled.')
       try {
         return await routeSessions({ req, res, route, service: config.sessions, summary: config.summaries, requestId: id })
       } catch (error) {
         if (res.destroyed) return
         const status = error instanceof ApiError ? error.status : 500
+        const code = error instanceof ApiError ? error.code : 'internal_error'
+        failure = code
         const payload = {
-          error: error instanceof ApiError ? error.code : 'internal_error',
+          error: code,
           message: error instanceof ApiError ? error.message : 'Request failed.',
           requestId: id
         }
@@ -305,8 +314,8 @@ export function createGateway(config, fetchImpl = fetch) {
         return res.end()
       }
     }
-    if (req.method !== 'POST' || !['/api/transcribe', '/api/chat'].includes(route)) return sendJson(res, 404, { error: 'not_found', requestId: id })
-    if (active >= 2) return sendJson(res, 429, { error: 'busy', message: 'Gateway is busy. Try again shortly.', requestId: id })
+    if (req.method !== 'POST' || !['/api/transcribe', '/api/chat'].includes(route)) return reject(404, 'not_found')
+    if (active >= 2) return reject(429, 'busy', 'Gateway is busy. Try again shortly.')
     active++
     const controller = new AbortController(),
       timer = setTimeout(() => {
@@ -399,8 +408,10 @@ export function createGateway(config, fetchImpl = fetch) {
       if (res.destroyed) return
       const timeout = controller.signal.aborted
       const status = timeout ? 504 : error instanceof ApiError ? error.status : 502
+      const code = timeout ? 'timeout' : error instanceof ApiError ? error.code : 'upstream_failure'
+      failure = code
       const payload = {
-        error: timeout ? 'timeout' : error instanceof ApiError ? error.code : 'upstream_failure',
+        error: code,
         message: timeout ? 'Request timed out.' : error instanceof ApiError ? error.message : 'Provider connection or response failed.',
         requestId: id
       }
@@ -411,4 +422,6 @@ export function createGateway(config, fetchImpl = fetch) {
       active--
     }
   })
+  server.requestLog = requestLog
+  return server
 }

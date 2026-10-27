@@ -16,9 +16,15 @@ export type Details = {
   phase?: string
   transport?: string
   code?: string
+  sessionId?: string
+  segmentId?: string
+  jobId?: string
 }
 export type DiagnosticEvent = { sequence: number; at: string; elapsedMs: number; level: Level; stage: Stage; event: string; traceId?: string; details: Details }
 const numeric = ['status', 'durationMs', 'bytes', 'frames', 'queued', 'dropped', 'ignored', 'chars', 'ageMs', 'rms', 'peak'] as const
+const identifiers = ['sessionId', 'segmentId', 'jobId'] as const
+// Identifiers are opaque tokens. Anything with whitespace or free text is dropped instead of logged.
+const identifier = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,63}$/
 const events = new Set([
   'request.start',
   'request.end',
@@ -87,6 +93,10 @@ function safeDetails(input: Details) {
   const output: Details = {}
   for (const key of numeric) if (typeof input[key] === 'number' && Number.isFinite(input[key])) output[key] = Math.round(input[key]! * 100) / 100
   for (const key of ['phase', 'transport', 'code'] as const) if (typeof input[key] === 'string' && categories.has(input[key]!)) output[key] = input[key]
+  for (const key of identifiers) {
+    const value = input[key]
+    if (typeof value === 'string' && identifier.test(value)) output[key] = value
+  }
   return output
 }
 export class Diagnostics {
@@ -121,16 +131,23 @@ export class Diagnostics {
   }
   span(stage: Stage, details: Details = {}) {
     const id = `t${++this.traces}`,
-      started = Date.now()
+      started = Date.now(),
+      context: Details = {}
+    for (const key of identifiers) if (typeof details[key] === 'string') context[key] = details[key]
     let ended = false
     this.record(stage, 'request.start', details, 'info', id)
     return {
       id,
-      mark: (event: string, extra: Details = {}) => this.record(stage, event, extra, 'info', id),
+      mark: (event: string, extra: Details = {}) => this.record(stage, event, { ...context, ...extra }, 'info', id),
       end: (level: Level = 'info', extra: Details = {}) => {
         if (ended) return
         ended = true
         this.record(stage, 'request.end', { ...details, ...extra, durationMs: Date.now() - started }, level, id)
+      },
+      fail: (error: unknown, extra: Details = {}) => {
+        if (ended) return
+        ended = true
+        this.record(stage, 'request.end', { ...details, ...extra, code: failureCode(error), durationMs: Date.now() - started }, 'error', id)
       }
     }
   }
@@ -160,6 +177,13 @@ export class Diagnostics {
     this.listeners.add(listener)
     return () => this.listeners.delete(listener)
   }
+}
+function failureCode(error: unknown): string {
+  if (error && typeof error === 'object' && 'code' in error) {
+    const code = (error as { code?: unknown }).code
+    if (typeof code === 'string' && categories.has(code)) return code
+  }
+  return errorCode(error)
 }
 export function errorCode(error: unknown, signal?: AbortSignal): 'cancelled' | 'timeout' | 'network' | 'operation_failed' {
   if (signal?.aborted) return 'cancelled'

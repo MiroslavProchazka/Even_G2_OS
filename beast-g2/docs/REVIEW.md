@@ -95,3 +95,10 @@ Lokální browser demo naopak ukázalo: odmítnutý CORS origin → browser netw
 4. Zavést CI a korelovanou diagnostiku/případný persistentní log R6/R7.
 
 Podrobnosti logů: README → Diagnostics. Ověření hardwaru, mobilního vizuálního layoutu, výkonu a baterie stále zbývá. Příčinu původního sekání Aside toto review neprokazuje.
+
+## Observability
+
+- **Serverový log:** jeden strukturovaný řádek na request s `requestId`, `method`, `route` (pouze cesta bez query), `status`, `durationMs`, `stage` a `code` při chybě. Kruhový buffer drží posledních 200 requestů v paměti (`server.requestLog`), bez log souboru a bez závislostí.
+- **Co se nikdy neloguje:** `Authorization`, tokeny, audio, přepis, prompty, query stringy ani těla providerů. `server/log.mjs` propouští jen allowlist polí a identifikátory validuje jako neprůhledné tokeny.
+- **Klientská diagnostika:** span relace nese `sessionId`, `segmentId` a `jobId` (jen ID, nikdy text). `span.fail(error)` zapíše `request.end` s `code` pouze z allowlistu (např. `cancelled`, `timeout`, `network`, `operation_failed`, `invalid_response`) a úrovní `error`; názvy existujících událostí se nemění.
+- **Jak číst selhání:** z odpovědi vezměte `requestId` (hlavička `X-Request-Id` nebo pole v těle), najděte záznam přes `requestLog.find(requestId)`, případně poslední requesty přes `requestLog.snapshot()` nebo `requestLog.export()`. `code` odliší odmítnutí (401/403/429), nenalezenou routu a timeout/upstream; export klienta obsahuje metadata a ID, ne text relace.
