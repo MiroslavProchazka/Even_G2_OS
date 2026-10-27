@@ -362,6 +362,10 @@ class FakeRecorder implements SessionRecorder {
     return this.nextId
   }
 
+  async attach(id: string) {
+    this.calls.push({ method: 'attach', args: [id] })
+  }
+
   async pause() {
     this.calls.push({ method: 'pause', args: [] })
   }
@@ -496,6 +500,25 @@ test('a recorder opens the returned session and the panel shows it', async (t) =
   assert.match(section.textContent, /Recording started/)
   assert.match(section.textContent, /Live call/)
   assert.ok(client.calls.some((call) => call.method === 'detail' && call.args[0] === 'ses_rec'))
+  handle.dispose()
+})
+
+test('starting a draft session with a recorder attaches instead of creating another', async (t) => {
+  const dom = installDom()
+  t.after(dom.restore)
+  const client = new FakeClient()
+  client.sessions = [session({ id: 'ses_draft', name: 'Draft call', status: 'draft' })]
+  client.details.set('ses_draft', detail({ session: session({ id: 'ses_draft', name: 'Draft call', status: 'draft' }) }))
+  const recorder = new FakeRecorder()
+  const handle = initSessions({ client: client as unknown as SessionClient, writerId: 'phone', recorder })
+  await settle()
+  const section = dom.document.main.children[0]!
+  find(section, (element) => element.className === 'session-row')!.click()
+  await settle()
+  findButton(section, 'Start')!.click()
+  await settle()
+  assert.deepEqual(recorder.calls, [{ method: 'attach', args: ['ses_draft'] }])
+  assert.equal(client.calls.filter((call) => call.method === 'create').length, 0)
   handle.dispose()
 })
 

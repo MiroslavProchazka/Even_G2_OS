@@ -24,6 +24,7 @@ import {
 
 export type SessionRecorder = {
   open(input: { name: string; language: SessionLanguage; goal?: string; prep?: string }): Promise<string>
+  attach(id: string): Promise<void>
   pause(): Promise<void>
   resume(): Promise<void>
   end(): Promise<void>
@@ -34,6 +35,7 @@ export type SessionsDeps = {
   writerId: string
   now?: () => number
   recorder?: SessionRecorder
+  canConnect?: () => boolean
   onGlassesStatus?: (text: string) => void
 }
 
@@ -837,19 +839,19 @@ export function initSessions(deps: SessionsDeps): SessionsHandle {
   async function act(kind: 'start' | 'pause' | 'resume' | 'end') {
     if (!detail || busy || disposed) return
     const session = detail.session
+    const recorder = deps.recorder
     await run(async () => {
-      if (deps.recorder) {
+      if (recorder) {
         if (kind === 'start') {
-          const id = await deps.recorder.open({ name: session.name, language: session.language, ...(session.goal ? { goal: session.goal } : {}), ...(session.prep ? { prep: session.prep } : {}) })
-          diagnostics.record('session', 'session.created')
-          showStatus('Recording started.')
-          await loadList()
-          await selectSession(id)
+          await recorder.attach(session.id)
+          diagnostics.record('session', 'session.started')
+          showStatus('Recording started for this session.')
+          await refreshSelected()
           return
         }
-        if (kind === 'pause') await deps.recorder.pause()
-        if (kind === 'resume') await deps.recorder.resume()
-        if (kind === 'end') await deps.recorder.end()
+        if (kind === 'pause') await recorder.pause()
+        if (kind === 'resume') await recorder.resume()
+        if (kind === 'end') await recorder.end()
       } else {
         if (kind === 'start') await deps.client.start(session.id, deps.writerId)
         if (kind === 'pause') await deps.client.pause(session.id, deps.writerId)
@@ -1116,7 +1118,7 @@ export function initSessions(deps: SessionsDeps): SessionsHandle {
   renderList()
   renderDetail()
   renderStatus()
-  void refresh()
+  if (!deps.canConnect || deps.canConnect()) void refresh()
 
   return { refresh, dispose }
 }
