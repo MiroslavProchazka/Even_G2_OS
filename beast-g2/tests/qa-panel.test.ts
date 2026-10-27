@@ -192,7 +192,7 @@ class FakeQaClient {
   }
 }
 
-function mount(client: FakeQaClient) {
+function mount(client: FakeQaClient, onSessions?: (listener: (sessions: Session[]) => void) => () => void) {
   const dom = installDom()
   const container = new FakeElement('div')
   const selected: string[] = []
@@ -203,7 +203,8 @@ function mount(client: FakeQaClient) {
     create: async () => false,
     select: async (id) => {
       selected.push(id)
-    }
+    },
+    ...(onSessions ? { onSessions } : {})
   }
   qaPanel.mount(container as unknown as HTMLElement, { client: client as unknown as SessionClient, writerId: 'phone', host })
   return { dom, container, selected, errors }
@@ -289,4 +290,24 @@ test('a gateway failure is reported through the host error line', async (t) => {
 
   assert.deepEqual(errors, ['Unexpected error. Refresh and try again.'])
   assert.doesNotMatch(container.textContent, /Supported by transcript/)
+})
+
+test('a session-list refresh fills the question picker', async (t) => {
+  const client = new FakeQaClient()
+  let notify: ((sessions: Session[]) => void) | undefined
+  const { dom, container } = mount(client, (listener) => {
+    notify = listener
+    return () => {}
+  })
+  t.after(dom.restore)
+
+  const select = find(container, (element) => element.tagName === 'SELECT')!
+  notify!([])
+  assert.equal(select.disabled, true)
+  notify!([session({ id: 'ses_2', name: 'Second' })])
+  assert.equal(select.disabled, false)
+  assert.deepEqual(
+    select.children.map((option) => option.value),
+    ['ses_2']
+  )
 })

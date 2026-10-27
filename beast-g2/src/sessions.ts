@@ -49,6 +49,8 @@ export type SessionPanelHost = {
   create(input: NewSessionInput): Promise<boolean>
   /** Selects an existing session and loads its detail, so a panel can open a search or memory hit. */
   select(id: string): Promise<void>
+  /** Subscribes to a completed session-list load. The listener runs at once with the current list. */
+  onSessions?(listener: (sessions: Session[]) => void): () => void
 }
 
 export type SessionsDeps = {
@@ -103,6 +105,7 @@ export function initSessions(deps: SessionsDeps): SessionsHandle {
   let summaryGated: Gated[] = []
   let preparationGated: Gated[] = []
   const persistentGated: Gated[] = []
+  const sessionListeners = new Set<(sessions: Session[]) => void>()
   const revokeTimers = new Set<ReturnType<typeof setTimeout>>()
   const turnElements = new Map<string, HTMLElement>()
 
@@ -148,7 +151,12 @@ export function initSessions(deps: SessionsDeps): SessionsHandle {
     gate: (target, enabled) => gate(target, enabled, persistentGated),
     error: (text) => showErrorText(text),
     create: (input) => createSession(input),
-    select: (id) => selectSession(id)
+    select: (id) => selectSession(id),
+    onSessions: (listener) => {
+      sessionListeners.add(listener)
+      listener(sessions)
+      return () => sessionListeners.delete(listener)
+    }
   }
   mountSessionPanels(panelSection, { ...deps, host: panelHost })
 
@@ -694,6 +702,13 @@ export function initSessions(deps: SessionsDeps): SessionsHandle {
       sessions = sortSessions(result.sessions)
       renderList()
       renderStatus()
+      for (const listener of sessionListeners) {
+        try {
+          listener(sessions)
+        } catch {
+          /* A panel must not break the session list. */
+        }
+      }
     } catch (error) {
       if (disposed || token !== listToken) return
       countLine.textContent = 'Sessions unavailable'

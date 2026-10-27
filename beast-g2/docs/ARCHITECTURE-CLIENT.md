@@ -14,6 +14,8 @@ import a domain file directly.
 | `src/session-api/client.ts` | HTTP plumbing (`SessionClientBase`), `RequestOptions` and `SessionApiError` |
 | `src/session-api/session.ts` | session types, `SessionClient` with the session routes, the `SessionApiError` re-export |
 | `src/session-api/summary.ts` | summary and preparation types, `SummaryEndpoints` with their routes |
+| `src/session-api/search.ts` | transcript search types and `SearchEndpoints` |
+| `src/session-api/qa.ts` | question, citation and evidence types, `QaEndpoints` |
 
 Domains compose by inheritance: `SessionClient extends SummaryEndpoints extends SessionClientBase`. Every domain class
 takes the settings provider from the base and calls `this.json`, `this.post` or `this.request`, so the bearer token,
@@ -46,6 +48,8 @@ Rules:
 | `src/sessions/panels/new-session.ts` | the "new session" form and its validation |
 | `src/sessions/panels/search.ts` | full-text search input, debounced query, results and selection through the host |
 | `src/sessions/panels/captions.ts` | Captions start/stop controls; it never creates a session |
+| `src/sessions/panels/qa.ts` | question form, evidence badge and citation chips |
+| `src/sessions/panels/hints.ts` | opt-in hint toggle, spacing, pause and local feedback counters |
 | `src/sessions/panels/dom.ts` | the `el` and `button` helpers shared by the section and its panels |
 
 A panel is `{ id, mount(section, deps) }`. `mount` receives the element it may fill and the same `SessionsDeps` that
@@ -55,8 +59,9 @@ A panel is `{ id, mount(section, deps) }`. `mount` receives the element it may f
 - `host.error(text)` writes the section alert line.
 - `host.create(values)` creates or starts a session, refreshes the list, selects it and resolves true when it exists.
 - `host.select(id)` opens an existing session by id, so a search hit can reuse the host's list and detail.
+- `host.onSessions(listener)` subscribes a panel to a completed list load; the listener runs at once with the current list and returns an unsubscribe function.
 
-Panels keep no module state. The host owns busy state, the status line, the list and the selection, so two panels never
+Panels keep no per-session module state. The host owns busy state, the status line, the list and the selection, so two panels never
 read each other. Registering the same `id` twice replaces the earlier panel, so a reload cannot mount duplicates.
 
 To add a panel:

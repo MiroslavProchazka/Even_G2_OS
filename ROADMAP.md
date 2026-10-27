@@ -142,6 +142,8 @@ U každé fáze je uvedený cíl, závislosti, vlastněné soubory, kritéria p�
 
 **Odhad:** M.
 
+**Stav:** hotovo 27. 10. 2026, commit `1e744fc` (merge `4bd0bd1`). Odpověď jen z finálního přepisu a souhrnu, striktní citace, `insufficient_evidence`; panel v Conversations. Celkem 317 testů v `main`.
+
 ### I4.3 Paměťové položky
 
 **Cíl:** Uložit vybrané tvrzení jako kandidáta, nechat ho schválit, umět ho nahradit a smazat spolu se zdrojem.
@@ -185,6 +187,8 @@ U každé fáze je uvedený cíl, závislosti, vlastněné soubory, kritéria p�
 **Mimo rozsah:** automatické ukládání hintů do paměti, hlasové spuštění nástroje.
 
 **Odhad:** M.
+
+**Stav:** hotovo 27. 10. 2026, commit `ffb5190` (merge `f1fefdd`). Výchozí vypnuto, explicitní zapnutí, 30s minimum, lokální hodnocení bez obsahu; panel v Conversations.
 
 ### I5.1 Briefing z uložených relací
 
@@ -316,6 +320,8 @@ U každé fáze je uvedený cíl, závislosti, vlastněné soubory, kritéria p�
 
 **Odhad:** M.
 
+**Stav:** hotovo 27. 10. 2026, commit `d0974e1` (merge `6ad8efc`). Migrace 004, retenční sweep pro audio i relace, `deleted_sessions` a `--deleted-from` pro obnovu; manuální `DELETE` zapisuje tombstone ve stejné transakci.
+
 ## 5. Vlny paralelní práce
 
 Tabulka říká, co může běžet současně. Sdílené soubory v tabulce výše určují, kde vznikne konflikt.
@@ -378,6 +384,6 @@ Pravidlo pro `src/main.ts`: v jedné vlně ho mění nejvýše jedna fáze. Kdy�
 
 ## 9. Historie
 
-- **1.2, 27. 10. 2026:** hotové I4.1, I4.4, I7.2 a protokol I3.1; oprava `pack:device` pro vnořené adresáře `src/`.
+- **1.3, 27. 10. 2026:** hotové I4.2, I4.5 a I7.3; manuální smazání relace zapisuje tombstone do `deleted_sessions`, retenční CLI umí `--deleted-from` při obnově zálohy; 317 testů v `main`.
 - **1.1, 27. 10. 2026:** hotové I4.0a, I4.0b, I3.2 a I7.1; doplněn stav u fází a rozhodnutí o dalším postupu.
 - **1.0, 27. 10. 2026:** první verze. Vychází ze stavu po I3, rozděluje I3 dokončení a etapy I4 až I7 na fáze, určuje vlny, vlastnictví souborů a rozhodovací body.

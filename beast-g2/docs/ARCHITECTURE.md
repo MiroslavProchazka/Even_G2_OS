@@ -14,12 +14,17 @@ conflict-free.
 | `server/sessions/routes/index.mjs` | Ordered route registry. |
 | `server/sessions/routes/sessions.mjs` | Session lifecycle, segments, import, gaps, export, turn corrections. |
 | `server/sessions/routes/summaries.mjs` | Summaries and preparations. |
+| `server/sessions/routes/search.mjs` | Full-text transcript search; must stay before `sessions.mjs`. |
+| `server/sessions/routes/qa.mjs` | Questions over one stored session with turn citations. |
 | `server/sessions/routes/respond.mjs` | Shared `methodNotAllowed` and `notFound` responders. |
 | `server/sessions/db.mjs` | SQLite open, pragmas and the `migrate()` runner. |
 | `server/sessions/migrations/index.mjs` | Ordered migration registry. |
-| `server/sessions/migrations/001-initial.mjs`, `002-summaries.mjs` | One migration per file: `version` and `sql`. |
+| `server/sessions/migrations/001-initial.mjs` … `004-retention.mjs` | One migration per file: `version` and `sql`. |
 | `server/sessions/service.mjs` | Session domain logic (core session, transcript, coverage). |
 | `server/sessions/summary.mjs` | Summary and preparation domain logic. |
+| `server/sessions/search.mjs` | FTS5 query building and diacritic folding. |
+| `server/sessions/qa.mjs` | Bounded context, strict citation validation and the `insufficient_evidence` result. |
+| `server/sessions/retention.mjs` | Audio and session expiry, text-free deletion journal. |
 | `server/sessions/repository.mjs` | SQL queries; no HTTP knowledge. |
 | `server/sessions/worker.mjs` | Transcription and summary job runner. |
 

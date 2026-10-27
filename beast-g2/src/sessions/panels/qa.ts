@@ -1,4 +1,4 @@
-import type { QaAnswer } from '../../session-api'
+import type { QaAnswer, Session } from '../../session-api'
 import type { SessionsDeps } from '../../sessions'
 import { citationLabel, describeError, formatDate } from '../../sessions-view'
 import { button, el } from './dom'
@@ -111,19 +111,7 @@ export const qaPanel = {
     async function loadSessions() {
       try {
         const { sessions } = await deps.client.list(50)
-        session.replaceChildren()
-        for (const item of sessions) {
-          const option = el('option', undefined, `${item.name} · ${formatDate(item.startedAt ?? item.createdAt)}`)
-          option.value = item.id
-          session.append(option)
-        }
-        if (!sessions.length) {
-          session.disabled = true
-          submit.disabled = true
-          status.textContent = 'No stored sessions yet.'
-          return
-        }
-        session.value = sessions[0]!.id
+        renderSessions(sessions)
       } catch (error) {
         session.disabled = true
         submit.disabled = true
@@ -131,11 +119,32 @@ export const qaPanel = {
       }
     }
 
+    function renderSessions(items: Session[]) {
+      const previous = session.value
+      session.replaceChildren()
+      for (const item of items) {
+        const option = el('option', undefined, `${item.name} · ${formatDate(item.startedAt ?? item.createdAt)}`)
+        option.value = item.id
+        session.append(option)
+      }
+      if (!items.length) {
+        session.disabled = true
+        submit.disabled = true
+        status.textContent = 'No stored sessions yet.'
+        return
+      }
+      session.disabled = false
+      submit.disabled = controller !== null
+      status.textContent = ''
+      session.value = items.some((item) => item.id === previous) ? previous : items[0]!.id
+    }
+
     form.addEventListener('submit', (event) => {
       event.preventDefault()
       void ask()
     })
 
-    void loadSessions()
+    const unsubscribe = deps.host?.onSessions?.((items) => renderSessions(items))
+    if (!unsubscribe) void loadSessions()
   }
 }

@@ -6,6 +6,10 @@ All notable changes to this repository are documented here. The format follows [
 
 ### Added
 
+- Session questions (`POST /api/sessions/:id/qa`) with strict turn citations, a bounded context and an explicit `insufficient_evidence` result; phone panel in Conversations.
+- Opt-in contextual hints with a hard 30-second minimum spacing, pause/resume and local useful/distracting counters that store no content.
+- Retention sweep for expired audio and sessions (`scripts/retention-check.mjs`) with migration 004, a text-free `deleted_sessions` journal and `--deleted-from` for restores; manual `DELETE` writes the same tombstone.
+- Device build 0.8.0 for the questions, hints and retention changes.
 - Continuous integration for the test suite and the TypeScript/Vite build on Node 20.18 and 22.
 - CodeQL analysis for JavaScript and TypeScript on push, pull request and a weekly schedule.
 - Repository hygiene job that fails when `.env`, `app.device.json` or an `.ehpk` package is tracked.
