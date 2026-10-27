@@ -37,7 +37,8 @@ All notable changes to this repository are documented here. The format follows [
 ### Changed
 
 - Root `README.md` rewritten as a project overview. The client keeps its own release notes.
-- `app.json` declares English and Czech (`["en", "cs"]`).
+- `app.json` version is now 0.6.0 for the stored-session build.
+- `app.json` declares English only, because the packer rejects `cs`; Czech remains a speech language option in the settings.
 - CI actions are pinned to commit SHAs, and the client build is checked by ESLint and Prettier.
 - `SECURITY.md` now states exactly which client data is kept in memory and which settings are saved.
 - The gateway now depends on `better-sqlite3` for the opt-in session store; chat and STT request handling is unchanged.

@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs'
 import { pathToFileURL } from 'node:url'
 
 const RESERVED_DOMAINS = ['example.com', 'example.net', 'example.org']
+const SUPPORTED_LANGUAGES = ['en', 'de', 'fr', 'es', 'it', 'zh', 'ja', 'ko']
 
 /**
  * Validate the parts of an Even Hub manifest that make a packaged app unusable.
@@ -15,6 +16,15 @@ export function checkManifest(manifest) {
   }
   if (manifest.entrypoint !== 'index.html') {
     errors.push(`entrypoint must be index.html, got ${JSON.stringify(manifest.entrypoint)}`)
+  }
+  if (!Array.isArray(manifest.supported_languages) || manifest.supported_languages.length === 0) {
+    errors.push('supported_languages must be a non-empty array')
+  } else {
+    for (const language of manifest.supported_languages) {
+      if (!SUPPORTED_LANGUAGES.includes(language)) {
+        errors.push(`supported_languages entry is not accepted by the packer: ${JSON.stringify(language)}`)
+      }
+    }
   }
   const network = (manifest.permissions || []).find((permission) => permission && permission.name === 'network')
   if (!network) return errors

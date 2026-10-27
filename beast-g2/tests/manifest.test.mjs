@@ -55,3 +55,17 @@ test('a wrong entrypoint or version is refused', () => {
   assert.match(errors.join('\n'), /entrypoint must be index\.html/)
   assert.match(errors.join('\n'), /semantic version/)
 })
+
+test('the manifest only declares languages the packer accepts', () => {
+  const errors = checkManifest(withWhitelist(['https://beast.prochmi.dev']))
+  assert.deepEqual(errors, [])
+  assert.ok(manifest.supported_languages.includes('en'))
+})
+
+test('a language outside the packer list is refused', () => {
+  const copy = withWhitelist(['https://beast.prochmi.dev'])
+  copy.supported_languages = ['en', 'cs']
+  assert.match(checkManifest(copy)[0], /not accepted by the packer/)
+  copy.supported_languages = []
+  assert.match(checkManifest(copy)[0], /non-empty array/)
+})

@@ -46,7 +46,7 @@ Doplňuje `REVIEW.md`, který řeší korektnost a provozní připravenost. Tent
 | C1 | P3 | Konfigurace | Konfigurace nemá validaci vstupů |
 | C2 | P3 | UI | Několik slepých uliček v ovládání |
 | D1 | P3 | Dokumentace | `SECURITY.md` tvrdí „no persistence", ale nastavení se ukládá |
-| D2 | P3 | Manifest | `supported_languages` obsahuje jen `en` |
+| D2 | P3 | Manifest | `supported_languages` musí být z povoleného seznamu; `cs` packer odmítá |
 | D3 | P3 | Dokumentace | `docs/` nemá rozcestník a míchá aktuální a historické soubory |
 
 ## Nálezy
@@ -226,13 +226,11 @@ Místo: `SECURITY.md`, `src/main.ts:88`.
 
 Návrh: upravit formulaci: „No conversation, audio or token is persisted. UI preferences, including optional vocabulary, are stored in the WebView's localStorage." Doplnit přímý Beast klíč do rozsahu.
 
-### D2 · P3 · `supported_languages` obsahuje jen `en`
+### D2 · P3 · `supported_languages` musí být z povoleného seznamu
 
 Místo: `app.json:9-11`.
 
-Aplikace je česky první, UI je česky, ale manifest nabízí jen angličtinu.
-
-Návrh: doplnit `cs`, pokud pole řídí nabídku v obchodě. Ověřit význam pole v dokumentaci Even, ne hádat.
+Packer přijímá jen `en, de, fr, es, it, zh, ja, ko`. `cs` odmítá a `.ehpk` se nevytvoří, i když je aplikace na český přepis připravená. Manifest proto uvádí jen `en`; čeština zůstává volbou jazyka přepisu v nastavení. `check-manifest` teď neplatný jazyk odmítne před buildem.
 
 ### D3 · P3 · `docs/` nemá rozcestník
 
