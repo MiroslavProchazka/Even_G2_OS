@@ -92,10 +92,7 @@ export class SummaryService {
     const now = this.now()
     const gaps = this.repo.listGaps(session.id)
     const gapKey = gaps.map((gap) => `${gap.startMs}:${gap.endMs ?? 'x'}:${gap.reason}`).join('|')
-    const coverageKey =
-      session.status === 'ended' && pendingTranscriptions === 0 && session.coverageDeclared === 'complete'
-        ? 'complete'
-        : `partial:${digest(gapKey)}:${pendingTranscriptions}`
+    const coverageKey = session.status === 'ended' && pendingTranscriptions === 0 && session.coverageDeclared === 'complete' ? 'complete' : `partial:${digest(gapKey)}:${pendingTranscriptions}`
     const key = `summarize:${session.id}:${session.transcriptRevision}:${coverageKey}`
     const existing = this.repo.getSummaryByIdempotencyKey(key)
     const previous = existing ?? this.repo.getLatestSummary(session.id)
