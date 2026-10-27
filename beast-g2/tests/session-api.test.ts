@@ -1,6 +1,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { SessionApiError, SessionClient } from '../src/session-api'
+import type { SessionPreparation, SessionSummary, SummaryContent } from '../src/session-api'
 import type { Settings } from '../src/api'
 const settings: Settings = { gateway: 'https://gateway.example.com', token: 'test-only-secret', language: 'cs' }
 function stub(t: any, handler: typeof fetch) {
@@ -71,4 +72,71 @@ test('a missing token fails before any request is made', async (t) => {
   })
   await assert.rejects(() => new SessionClient(() => ({ ...settings, token: '' })).detail('ses_1'), /API key or gateway token/)
   assert.equal(called, false)
+})
+
+test('the public barrel keeps the whole client surface on one prototype', () => {
+  const client = new SessionClient(() => settings) as unknown as Record<string, unknown>
+  const methods = [
+    'create',
+    'list',
+    'detail',
+    'remove',
+    'start',
+    'pause',
+    'resume',
+    'end',
+    'uploadSegment',
+    'addGap',
+    'correctTurn',
+    'export',
+    'requestSummary',
+    'summary',
+    'summaries',
+    'updateSummary',
+    'createPreparation',
+    'preparation',
+    'preparations'
+  ]
+  for (const name of methods) assert.equal(typeof client[name], 'function', `${name} is missing from the barrel contract`)
+})
+
+test('a summary request through the barrel posts to the summary route', async (t) => {
+  let url = '',
+    method = '',
+    body = ''
+  stub(t, async (input, init) => {
+    url = String(input)
+    method = init!.method ?? 'GET'
+    body = String(init!.body ?? '')
+    return Response.json({ summary: { id: 'sum_1' }, created: true })
+  })
+  const result: { summary: SessionSummary; created: boolean } = await new SessionClient(() => settings).requestSummary('ses_1', { force: true })
+  assert.equal(result.created, true)
+  assert.equal(url, 'https://gateway.example.com/api/sessions/ses_1/summary')
+  assert.equal(method, 'POST')
+  assert.equal(body, JSON.stringify({ force: true }))
+})
+
+test('a preparation request through the barrel patches the stored summary', async (t) => {
+  let url = '',
+    method = '',
+    body = ''
+  stub(t, async (input, init) => {
+    url = String(input)
+    method = init!.method ?? 'GET'
+    body = String(init!.body ?? '')
+    return Response.json({ summary: { id: 'sum_1' } })
+  })
+  const content: SummaryContent = { schemaVersion: 1, overview: { text: 'We agreed to ship.', citations: [] }, decisions: [], actionCandidates: [], openQuestions: [] }
+  const result: { summary: SessionSummary } = await new SessionClient(() => settings).updateSummary('ses_1', 'sum_1', content)
+  assert.equal(result.summary.id, 'sum_1')
+  assert.equal(url, 'https://gateway.example.com/api/sessions/ses_1/summaries/sum_1')
+  assert.equal(method, 'PATCH')
+  assert.equal(body, JSON.stringify({ content }))
+})
+
+test('a preparation read through the barrel keeps the preparation type', async (t) => {
+  stub(t, async () => Response.json({ preparation: null }))
+  const result: { preparation: SessionPreparation | null } = await new SessionClient(() => settings).preparation('ses_1')
+  assert.equal(result.preparation, null)
 })

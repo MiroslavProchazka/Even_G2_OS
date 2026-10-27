@@ -1,6 +1,8 @@
 import { diagnostics } from './diagnostics'
 import { SessionApiError } from './session-api'
 import type { Session, SessionClient, SessionDetail, SessionLanguage, SessionSummary, SummaryActionCandidate, SummaryCitation, SummaryContent, SummaryItem } from './session-api'
+import { mountSessionPanels } from './sessions/panels'
+import { button, el } from './sessions/panels/dom'
 import {
   citationLabel,
   coverageLabel,
@@ -31,6 +33,22 @@ export type SessionRecorder = {
   end(): Promise<void>
 }
 
+/** The values a panel collects before the host creates a session. */
+export type NewSessionInput = { name: string; language: SessionLanguage; goal: string; prep: string }
+
+/**
+ * The handle `initSessions` gives every registered panel. The host owns busy state, the status and error lines, the list
+ * and the selection, so panels never reach into each other.
+ */
+export type SessionPanelHost = {
+  /** Registers a control so the host disables it while a session action runs. */
+  gate<T extends HTMLButtonElement | HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>(target: T, enabled: () => boolean): T
+  /** Shows a validation message in the section alert line. */
+  error(text: string): void
+  /** Creates a session (or starts recording) and selects it. Resolves true when the session exists. */
+  create(input: NewSessionInput): Promise<boolean>
+}
+
 export type SessionsDeps = {
   client: SessionClient
   writerId: string
@@ -38,6 +56,8 @@ export type SessionsDeps = {
   recorder?: SessionRecorder
   canConnect?: () => boolean
   onGlassesStatus?: (text: string) => void
+  /** Supplied by `initSessions` for registered panels; callers of `initSessions` never set it. */
+  host?: SessionPanelHost
 }
 
 export type SessionsHandle = { refresh(): Promise<void>; dispose(): void }
@@ -47,20 +67,6 @@ type Gated = { el: GatedElement; enabled: () => boolean }
 type ItemEditRow = { kind: 'item'; section: 'decisions' | 'openQuestions'; original: SummaryItem; text: HTMLTextAreaElement; remove: HTMLInputElement }
 type ActionEditRow = { kind: 'action'; original: SummaryActionCandidate; text: HTMLTextAreaElement; owner: HTMLInputElement; dueText: HTMLInputElement; remove: HTMLInputElement }
 type EditRow = ItemEditRow | ActionEditRow
-type NewSessionForm = { element: HTMLElement; name: HTMLInputElement; language: HTMLSelectElement; goal: HTMLTextAreaElement; prep: HTMLTextAreaElement; submit: HTMLButtonElement }
-
-function el<K extends keyof HTMLElementTagNameMap>(tag: K, className?: string, text?: string): HTMLElementTagNameMap[K] {
-  const element = document.createElement(tag)
-  if (className) element.className = className
-  if (text !== undefined) element.textContent = text
-  return element
-}
-
-function button(label: string, className = '', type: 'button' | 'submit' = 'button'): HTMLButtonElement {
-  const element = el('button', className, label)
-  element.type = type
-  return element
-}
 
 function humanize(value: string | null | undefined) {
   return value ? value.replaceAll('_', ' ') : 'unknown reason'
@@ -123,7 +129,7 @@ export function initSessions(deps: SessionsDeps): SessionsHandle {
   const columns = el('div', 'sessions-columns')
   columns.append(listPane, detailPane)
 
-  const newSession = buildNewSessionForm()
+  const panelSection = el('div', 'sessions-panels')
 
   section.append(el('p', 'eyebrow', 'STORED SESSIONS'), el('h2', undefined, 'Conversations'))
   section.append(
@@ -133,8 +139,15 @@ export function initSessions(deps: SessionsDeps): SessionsHandle {
       'Stored sessions keep the final transcript, known coverage gaps and traceable summaries on your gateway. Nothing is recorded until you start a session, and a summary never replaces the transcript.'
     )
   )
-  section.append(statusLine, errorLine, columns, newSession.element)
+  section.append(statusLine, errorLine, columns, panelSection)
   main.append(section)
+
+  const panelHost: SessionPanelHost = {
+    gate: (target, enabled) => gate(target, enabled, persistentGated),
+    error: (text) => showErrorText(text),
+    create: (input) => createSession(input)
+  }
+  mountSessionPanels(panelSection, { ...deps, host: panelHost })
 
   function gate<T extends GatedElement>(target: T, enabled: () => boolean, group: Gated[]): T {
     group.push({ el: target, enabled })
@@ -212,64 +225,6 @@ export function initSessions(deps: SessionsDeps): SessionsHandle {
       if (error instanceof SessionApiError) throw error
       throw new RecorderError(error instanceof Error ? error.message : String(error))
     }
-  }
-
-  function buildNewSessionForm(): NewSessionForm {
-    const wrapper = el('details', 'sessions-new')
-    wrapper.append(el('summary', undefined, 'New session'))
-    const form = el('form', 'sessions-create')
-
-    const nameLabel = el('label', undefined, 'Name')
-    const name = el('input')
-    name.name = 'name'
-    name.maxLength = 200
-    name.required = true
-    name.placeholder = 'Monday call'
-    nameLabel.append(name)
-
-    const languageLabelElement = el('label', undefined, 'Language')
-    const language = el('select')
-    language.name = 'language'
-    for (const value of ['cs', 'en', 'auto'] as const) {
-      const option = el('option', undefined, languageLabel(value))
-      option.value = value
-      language.append(option)
-    }
-    language.value = 'cs'
-    languageLabelElement.append(language)
-
-    const goalLabel = el('label', undefined, 'Goal (optional)')
-    const goal = el('textarea')
-    goal.name = 'goal'
-    goal.maxLength = 4000
-    goal.rows = 2
-    goal.placeholder = 'What should this conversation achieve?'
-    goalLabel.append(goal)
-
-    const prepLabel = el('label', undefined, 'Preparation notes (optional)')
-    const prep = el('textarea')
-    prep.name = 'prep'
-    prep.maxLength = 4000
-    prep.rows = 2
-    prep.placeholder = 'People, context and facts to have ready.'
-    prepLabel.append(prep)
-
-    const submit = gate(button(deps.recorder ? 'Start recording' : 'Create session', '', 'submit'), () => true, persistentGated)
-    form.append(nameLabel, languageLabelElement, goalLabel, prepLabel, submit)
-    form.append(
-      el(
-        'p',
-        'hint',
-        deps.recorder ? 'Recording starts immediately. Pause or end it from the session below.' : 'Creates a draft session. Import audio with npm run session:import, then request a summary here.'
-      )
-    )
-    form.addEventListener('submit', (event) => {
-      event.preventDefault()
-      void createSession({ name, language, goal, prep })
-    })
-    for (const control of [name, language, goal, prep]) gate(control, () => true, persistentGated)
-    wrapper.append(form)
-    return { element: wrapper, name, language, goal, prep, submit }
   }
 
   function renderList() {
@@ -817,18 +772,10 @@ export function initSessions(deps: SessionsDeps): SessionsHandle {
     })
   }
 
-  async function createSession(form: Omit<NewSessionForm, 'element' | 'submit'>) {
-    if (busy || disposed) return
-    const name = form.name.value.trim()
-    if (!name) {
-      showErrorText('Enter a session name.')
-      form.name.focus()
-      return
-    }
-    const language = form.language.value as SessionLanguage
-    const goal = form.goal.value.trim()
-    const prep = form.prep.value.trim()
-    const input = { name, language, ...(goal ? { goal } : {}), ...(prep ? { prep } : {}) }
+  async function createSession(values: NewSessionInput): Promise<boolean> {
+    if (busy || disposed) return false
+    const input = { name: values.name, language: values.language, ...(values.goal ? { goal: values.goal } : {}), ...(values.prep ? { prep: values.prep } : {}) }
+    let created = false
     await run(async () => {
       let id: string
       if (deps.recorder) {
@@ -842,13 +789,11 @@ export function initSessions(deps: SessionsDeps): SessionsHandle {
         showStatus('Session created. Import audio with npm run session:import, then request a summary.')
       }
       if (!id) throw new Error('The recorder did not return a session.')
-      form.name.value = ''
-      form.goal.value = ''
-      form.prep.value = ''
-      form.language.value = 'cs'
+      created = true
       await loadList()
       await selectSession(id)
     })
+    return created
   }
 
   async function act(kind: 'start' | 'pause' | 'resume' | 'end') {
