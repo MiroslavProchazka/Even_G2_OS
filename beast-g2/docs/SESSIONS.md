@@ -224,6 +224,43 @@ session name, source date, source summary ID, focus and citations. Its status ca
 another preparation. Deleting the source session removes its preparations, including those stored
 in another target session; deleting the target session removes its preparations.
 
+## Briefing from stored sessions (I5.1, branch only)
+
+I5.1 is implemented on two unmerged branches, not in `main`: server
+`feat/i5-1-briefing-server` (`a1707f7`) and phone client
+`feat/i5-1-briefing-client` (`d95d9a4`). Each branch passes 357/357 tests;
+`main` remains at 347 and has no `/api/briefing` route or Briefing panel.
+
+`POST /api/briefing` builds one deterministic briefing from the latest summaries
+of one to three selected sessions. Body `{ "sessionIds": ["ses_…"] }`; duplicates
+are removed in first-seen order. It never calls a model, never writes and never
+reads an external system. `sources` keeps selection order and carries the session
+name and date, latest summary id and time, summary and review status, both
+transcript revisions, verification state with a reason and summary coverage.
+`items` contains only verified sources: one overview, each decision, each action
+candidate as a `commitment` and each open question, with a stable id, source
+session and date, and exact turn citations.
+
+A source is `verified` only when its latest summary is `ready`, bound to the
+current transcript revision, has a non-empty overview with citations, and every cited
+turn exists in both the summary citations and the current transcript at the same turn
+revision. `reviewStatus` does not affect verification. A missing, pending, failed or
+stale summary, a transcript change, a missing citation or a stale citation is
+`unverified` with a reason and contributes no items; it is never reported as
+"nothing new". Empty selection is `400 empty_selection`, more than three unique
+sessions is `400 too_many_sessions`, an unknown session is `404 not_found` and a
+non-POST method is `405 method_not_allowed`.
+
+The phone panel adds checkboxes for at most three sessions, an explicit build
+action, source badges, grouped overview, decisions, commitments and open questions,
+citation chips that open the source session, and an explicit `unverified` explanation
+for a source with no current summary. The contract and response example are in
+`beast-g2/docs/BRIEFING.md` on the server branch.
+
+Open: merge both branches into `main`, run the combined test suite, exercise the
+panel in a browser and the simulator, and build a device package. The phase is not
+hardware-verified.
+
 ## Retention and limits
 
 | Setting | Default | Meaning |

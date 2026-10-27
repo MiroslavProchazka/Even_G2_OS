@@ -1,8 +1,8 @@
 # Product spec — Even G2: rozhovory, paměť a pracovní kontext
 
-Verze: 0.5 · Datum: 27. 10. 2026 · Stav: MVP a fáze I4.1, I4.2, I4.3, I4.4, I4.5, I7.2, I7.3 implementovány, ověření na hardwaru otevřené
+Verze: 0.6 · Datum: 27. 10. 2026 · Stav: MVP a fáze I4.1, I4.2, I4.3, I4.4, I4.5, I7.2, I7.3 implementovány; I5.1 implementováno na branchích, neintegrováno; ověření na hardwaru otevřené
 
-Výchozí implementace: `beast-g2` 0.9.0, větev `main` k 27. 10. 2026.
+Výchozí implementace: `beast-g2` 0.9.0, větev `main` k 27. 10. 2026; I5.1 na větvích `feat/i5-1-briefing-server` a `feat/i5-1-briefing-client`.
 
 Tento dokument obsahuje kritické review původního návrhu a jeho opravenou podobu. Požadavky popisují cílové chování; část MVP je implementovaná a její skutečný stav uvádí sekce 0. Číselné limity a metriky jsou navržené výchozí hodnoty pro pilot; nejsou výsledkem měření ani schváleným závazkem. Prováděcí plán etap a fází včetně rozdělení práce mezi agenty je v [ROADMAP.md](ROADMAP.md).
 
@@ -22,11 +22,12 @@ MVP z etap I1–I3 je implementované a lokálně ověřené. Následující tab
 | Paměťové položky (I4.3) | Hotovo | 347 testů v `main`, migrace 005, schválení/odmítnutí/nahrazení, `keepMemory` s `evidenceState: "lost"`, panel a samostatný seznam kept memory | Automatické návrhy modelem, vektorové hledání, reálné použití v briefingu |
 | Captions režim (I4.4) | Hotovo v kódu | Testy controlleru a panelu, žádné volání session API, text se po ukončení vymaže | Ověření na G2, výpadky BLE a mikrofonu |
 | Opt-in hinty (I4.5) | Hotovo | Výchozí vypnuto, 30s minimum, pauza, lokální počítadla bez obsahu; panel v Conversations | Ověření na G2 a reálné vytížení modelu |
+| Briefing z uložených relací (I5.1) | Implementováno na branchích, neintegrováno | Server `a1707f7` a klient `d95d9a4`, každý 357/357; deterministický briefing z 1–3 relací, citace, datum a `unverified` zdroje | Merge do `main`, společné testy, browser/simulator smoke a device build |
 | Observabilita a CI (I7.2) | Hotovo | Request ring 200 záznamů, redakce tokenů a textu, CI gates na Node 20 a 22 | Vzdálené GitHub Actions neběžely |
 | Retence a obnova (I7.3) | Hotovo | Migrace 004, sweep audia i relací, `deleted_sessions`, `--deleted-from` při obnově; manuální DELETE zapisuje tombstone | Forenzní mazání bloků, právní posouzení |
-| Pracovní kontext (I5, I6) | Neimplementováno | – | Etapy I5, I6 v [ROADMAP.md](ROADMAP.md) |
+| Pracovní kontext (I5, I6) | Částečně | I5.1 implementováno na branchích, neintegrováno; I5.2, I5.3 a I6 neimplementováno | Etapy I5, I6 v [ROADMAP.md](ROADMAP.md) |
 
-Důkazy jsou z lokálního běhu na Node 20.18 (`better-sqlite3` je v tomto checkoutu kompilovaný pro Node 20) a z prohlížeče proti loopback demo gateway. Celkem 347 testů k 27. 10. 2026. Simulátor `@evenrealities/evenhub-simulator` ověřil doručení tap gesta z brýlí do aplikace; neověřuje kvalitu mikrofonu ani chování při zamčeném telefonu. Captions, hledání, dotazy nad relací, paměťové položky a hinty jsou ověřené testy a v prohlížeči, ne na brýlích. Retence a obnova jsou ověřené testy a dry-run CLI; skutečná obnova produkční zálohy zůstává na operátorovi. Nasazení, HTTPS a reálné Beast inferenční volání zůstávají otevřené.
+Důkazy jsou z lokálního běhu na Node 20.18 (`better-sqlite3` je v tomto checkoutu kompilovaný pro Node 20) a z prohlížeče proti loopback demo gateway. Celkem 347 testů v `main` k 27. 10. 2026; I5.1 má 357 testů na serverové i klientské branchi. Simulátor `@evenrealities/evenhub-simulator` ověřil doručení tap gesta z brýlí do aplikace; neověřuje kvalitu mikrofonu ani chování při zamčeném telefonu. Captions, hledání, dotazy nad relací, paměťové položky a hinty jsou ověřené testy a v prohlížeči, ne na brýlích. Retence a obnova jsou ověřené testy a dry-run CLI; skutečná obnova produkční zálohy zůstává na operátorovi. Nasazení, HTTPS a reálné Beast inferenční volání zůstávají otevřené.
 
 ## 1. Produktové rozhodnutí
 
@@ -140,6 +141,7 @@ Příští příprava využije uživatelem vybraný souhrn. Po jeho změně je z
 | FR-11 | Následná příprava je dohledatelná. | Uživatel vybere minulou relaci a otevře z přípravy původní souhrn/pasáž s datem. | Hotovo. Preparation nese zdrojovou relaci, revizi, datum, focus a citace. |
 | FR-12 | Import používá stejný model relace. | Stejné typy přepisu, citací a souhrnu jako u G2; jiný zdroj audia není zvláštní paralelní archiv. | Hotovo. Import vytváří stejné segmenty, turny a souhrny jako G2 capture. |
 | FR-13 | Paměťová položka má doložený původ a stav. | Kandidát vznikne jen z konkrétního turnu a revize; bez schválení se nevrací; nahrazení zachová historii; smazání zdroje smaže odvozené položky, pokud uživatel výslovně nezvolí ponechání s označením ztráty důkazu. | Hotovo. Migrace 005, `keepMemory`, samostatný read-only seznam kept memory; automatické návrhy modelem chybí. |
+| FR-14 | Briefing má doložený zdroj, datum a stav ověření. | Každé tvrzení nese zdrojovou relaci, datum a stav; chybějící nebo zastaralý souhrn je `unverified` a nepřispívá tvrzením. Briefing je deterministický, read-only a nejvýše pro tři relace. | Implementováno na branchích. Server `a1707f7`, klient `d95d9a4`, každý 357/357; není v `main`. |
 
 ### Pravidla souhrnu
 
@@ -339,7 +341,7 @@ Pokud jsou souhrny přínosné, ale hinty ruší, pokračovat s archivem a expli
 | I2 — souhrn a další příprava | Citace, opravy, revize, výběr minulého souhrnu. | FR-07/08/11 a první hodnocení přesnosti. | Hotovo. 144 testů, migrace v2, stale. Kvalita nezměřena. |
 | I3 — integrace G2 | Oddělená pipeline, dlouhá řeč, spolehlivé Pause/End a stav uložení. | Hardwarová sada a jasně uvedený podporovaný provoz. I1–I3 tvoří MVP. | Hotovo v kódu a simulátoru, 198 testů. Hardwarová sada otevřená. |
 | I4 — paměť a živá pomoc | Vyhledávání, dotazy nad relací, schvalované poznatky; oddělený experiment Captions a hintů. | Užitečnost retrievalu, opravy a smazání odvozených dat; přijatelná míra vyrušování. | Hotovo v kódu a prohlížeči. Fáze I4.0–I4.5 v [ROADMAP.md](ROADMAP.md). |
-| I5 — pracovní kontext | Jeden omezený read-only briefing nebo příprava nad povolenými zdroji. | Ověřené pokrytí, aktuálnost, správné stavy a prokázaná úspora. | Nezahájeno. Fáze I5.1–I5.3. |
+| I5 — pracovní kontext | Jeden omezený read-only briefing nebo příprava nad povolenými zdroji. | Ověřené pokrytí, aktuálnost, správné stavy a prokázaná úspora. | Částečně. I5.1 implementováno na branchích, neintegrováno; I5.2 a I5.3 neimplementováno. |
 | I6 — otevřená rozhraní | API/MCP, případně další capture adaptér a schvalované akce. | Ověřený přístupový model a samostatný test každého nového vstupu či akce. | Nezahájeno. Fáze I6.1–I6.3. |
 
 Kalendářní odhady záměrně nejsou v této tabulce; pořadí prací, závislosti a velikosti jednotlivých fází jsou v [ROADMAP.md](ROADMAP.md). Původní odhady 1–3 dny na modul nezahrnovaly plně změny capture, persistenci a obnovu, a nejsou závazným plánem.
@@ -373,6 +375,7 @@ Při další iteraci zachovat ID požadavků a rozhodnutí. U každé změny uv�
 
 ### Historie
 
+- **0.6 — 27. 10. 2026:** fáze I5.1 (deterministický briefing z 1–3 uložených relací, citace, datum, `unverified` zdroje, panel v Conversations); implementováno na branchích `feat/i5-1-briefing-server` (`a1707f7`) a `feat/i5-1-briefing-client` (`d95d9a4`), každá 357/357; `main` zůstává na 347 a bez integrace.
 - **0.5 — 27. 10. 2026:** fáze I4.3 (paměťové položky z konkrétního turnu a revize, schválení/odmítnutí/nahrazení, `keepMemory` s `evidenceState: "lost"`, samostatný read-only seznam kept memory); stav testů 347, výchozí implementace 0.9.0.
 - **0.4 — 27. 10. 2026:** fáze I4.2 (dotazy nad relací se striktními citacemi a `insufficient_evidence`), I4.5 (opt-in hinty s 30s odstupem a lokálním hodnocením) a I7.3 (retence audia i relací, deletion journal, `--deleted-from` při obnově); stav testů 317.
 - **0.3 — 27. 10. 2026:** fáze I4.1 (fulltext nad přepisy), I4.4 (Captions bez ukládání) a I7.2 (observabilita, request ring, CI brány); stav testů 271, stav u fází v ROADMAP.md.
