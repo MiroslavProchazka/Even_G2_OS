@@ -6,8 +6,10 @@ import { gatewayUrl, GatewayClient, type Settings } from './api'
 import { AssistantController, type AudioPort } from './controller'
 import { hud, continuousHud, LatestDisplay } from './display'
 import { ContinuousController } from './continuous'
+import { CaptionsController, captionsHud } from './captions'
 import { createContinuousDemo, simulateUtterance } from './continuous-demo'
 import { connectEven } from './even'
+import { bindCaptions } from './sessions/panels/captions'
 import { version } from '../package.json'
 import { connectionMessage, historyVisible, isBusy, modeSwitchNote } from './view'
 import { initSessions, type SessionRecorder } from './sessions'
@@ -20,7 +22,7 @@ root.innerHTML = `<header><span>BEAST / G2</span><span class="tag">DEVICE TEST �
 <div class="lens"><div class="lens-status"><span id="status-left"></span><span id="status-right"></span></div><pre id="hud" aria-live="polite"></pre></div><button id="retry-display" class="secondary">Retry display</button><p id="bridge" role="status">Connecting to Even G2…</p>
 <div class="actions"><button id="record">Start question</button><button id="cancel" class="secondary">Cancel</button><button id="previous" aria-label="Previous answer page" class="secondary">↑</button><button id="next" aria-label="Next answer page" class="secondary">↓</button></div>
 <p class="hint">G2: tap to record, tap again to send · double tap to exit · swipe to read</p>
-<section aria-label="Listening mode"><label for="mode">Listening mode</label><select id="mode"><option value="manual">Manual · tap to ask</option><option value="continuous">Continuous G2 · live transcript + hints</option><option value="simulation">Continuous demo · synthetic PCM, no microphone</option></select><label for="speech-threshold">Speech sensitivity</label><select id="speech-threshold"><option value="300">Quiet speech</option><option value="600" selected>Normal</option><option value="1000">Noisy room</option></select><div class="actions"><button id="listen">Resume listening</button><button id="pause" class="secondary">Pause listening</button><button id="inject" class="secondary">Simulate speech segment</button></div><p id="listening" role="status"></p><p class="hint">Live transcript appears while speaking. After 2 seconds of silence, the final transcript goes to Beast. Hints appear automatically for 10 seconds each, then disappear. Keep each utterance under 30 seconds. Tap pauses/resumes; double tap exits.</p></section><form id="ask"><label for="question">Text question · also works without glasses</label><div class="row"><input id="question" maxlength="4000" placeholder="Co umí Beast G2?" required><button>Ask Beast</button></div></form>
+<section aria-label="Listening mode"><label for="mode">Listening mode</label><select id="mode"><option value="manual">Manual · tap to ask</option><option value="continuous">Continuous G2 · live transcript + hints</option><option value="captions">Captions · live text, nothing stored</option><option value="simulation">Continuous demo · synthetic PCM, no microphone</option></select><label for="speech-threshold">Speech sensitivity</label><select id="speech-threshold"><option value="300">Quiet speech</option><option value="600" selected>Normal</option><option value="1000">Noisy room</option></select><div class="actions"><button id="listen">Resume listening</button><button id="pause" class="secondary">Pause listening</button><button id="inject" class="secondary">Simulate speech segment</button></div><p id="listening" role="status"></p><p class="hint">Live transcript appears while speaking. After 2 seconds of silence, the final transcript goes to Beast. Hints appear automatically for 10 seconds each, then disappear. Keep each utterance under 30 seconds. Tap pauses/resumes; double tap exits.</p></section><form id="ask"><label for="question">Text question · also works without glasses</label><div class="row"><input id="question" maxlength="4000" placeholder="Co umí Beast G2?" required><button>Ask Beast</button></div></form>
 <section><h2>Continuous conversation setup</h2><label for="conversation-mode">Reply style</label><select id="conversation-mode"><option value="direct">Answer every utterance</option><option value="context">Contextual cues · experimental</option></select><label for="prep-notes">Prep notes · people, topic, goal</label><textarea id="prep-notes" maxlength="1500" placeholder="Who am I meeting? What do we need to decide? Relevant names and facts."></textarea><label><input id="web-enabled" type="checkbox"> Enable web commands (custom gateway only)</label><p>Say “vyhledej …” or “search …”. Only that query goes to Brave Search, without prep notes or conversation history. Requires a configured gateway; direct Beast cannot search.</p><button id="apply-conversation" class="secondary">Apply conversation setup</button><p id="conversation-status">Session only. Apply while paused; changing setup resets model context.</p></section>
 <section id="history-section"><h2>Continuous hint history</h2><p>Last 20 completed answers in this session. Survives hint expiry and pause; closing/reloading clears it. Demo history is separate.</p><button id="export-history" class="secondary">Export conversation JSON</button><button id="clear-history" class="secondary">Delete hint history</button><div id="hint-history"></div><textarea id="history-json" hidden readonly aria-label="Conversation export"></textarea></section>
 <div class="detail"><h2>Transcript</h2><p id="transcript">Your spoken question will appear here.</p><h2>Answer</h2><p id="answer">Waiting for your first question.</p><p id="error" role="alert"></p></div></section>
@@ -114,7 +116,7 @@ let display: LatestDisplay | undefined,
 let sessionLine = ''
 let pageClosed = false
 let even: Awaited<ReturnType<typeof connectEven>> | undefined
-let mode: 'manual' | 'continuous' | 'simulation' = 'manual'
+let mode: 'manual' | 'continuous' | 'simulation' | 'captions' = 'manual'
 let switchingMode = false
 const continuous = new ContinuousController(measuredAudio, api, paint, { requireDisplayAck: true })
 const simulation = createContinuousDemo(paint)
@@ -138,9 +140,37 @@ const writerId = (() => {
   return id
 })()
 const capture = new StoredSessionCapture(measuredAudio, sessionApi, { writerId, onChange: () => paint() })
+// Captions reuse the same microphone and VAD but never create a session, never archive and never call the session API.
+const captions = new CaptionsController(measuredAudio, (wav, signal) => api.transcribe(wav, signal), paint, {
+  microphoneOwner: () => {
+    if (continuous.state.microphone !== 'off') return 'continuous listening'
+    if (simulation.state.microphone !== 'off') return 'the continuous demo'
+    if (['starting', 'recording'].includes(controller.state.phase)) return 'a manual question'
+    if (['opening', 'recording'].includes(capture.state.phase)) return 'a stored session'
+    return undefined
+  }
+})
+bindCaptions(captions, startCaptions)
+const captionsHoldMicrophone = () => captions.state.microphone !== 'off' || captions.state.phase === 'starting'
+/** The phone's Start button selects captions mode first, so the glasses PCM reaches this mode instead of another one. */
+async function startCaptions() {
+  if (continuous.state.microphone !== 'off' || ['starting', 'recording'].includes(controller.state.phase) || ['opening', 'recording'].includes(capture.state.phase)) {
+    paint()
+    element('listening').textContent = 'Another mode is using the microphone. Stop it before starting captions.'
+    return
+  }
+  if (mode !== 'captions') {
+    await pauseAll()
+    mode = 'captions'
+    element<HTMLSelectElement>('mode').value = 'captions'
+    page = 0
+    paint()
+  }
+  await captions.start()
+}
 const recorder: SessionRecorder = {
-  open: (input) => capture.open(input),
-  attach: (id) => capture.attach(id),
+  open: (input) => (captionsHoldMicrophone() ? Promise.reject(new Error('Captions are using the microphone. Stop captions before starting a stored session.')) : capture.open(input)),
+  attach: (id) => (captionsHoldMicrophone() ? Promise.reject(new Error('Captions are using the microphone. Stop captions before starting a stored session.')) : capture.attach(id)),
   pause: () => capture.pause(),
   resume: () => capture.resume(),
   end: () => capture.end()
@@ -156,43 +186,51 @@ const sessions = initSessions({
   }
 })
 function paint() {
-  const state = mode === 'manual' ? controller.state : activeContinuous().viewState(),
+  const captionsMode = mode === 'captions'
+  const state = captionsMode ? captions.viewState() : mode === 'manual' ? controller.state : activeContinuous().viewState(),
     view = hud(state, page)
   page = Math.min(page, view.count - 1)
   const listening = activeContinuous().state
-  const status =
-    mode === 'manual'
+  const status = captionsMode
+    ? captions.statusLine()
+    : mode === 'manual'
       ? 'Manual mode · microphone starts on tap.'
       : `${mode === 'simulation' ? 'SIMULATED MIC' : 'G2 MIC'}: ${listening.microphone.toUpperCase()} · ${listening.phase} · queue ${listening.queued}/2 · dropped ${listening.dropped} · skipped ${listening.ignored} · unread ${listening.unread}/3 · replies dropped ${listening.repliesDropped}. ${listening.notice}`
-  const diagnosticState = `${mode}:${state.phase}:${listening.phase}:${listening.microphone}:${listening.queued}:${listening.dropped}:${listening.ignored}:${Boolean(state.error)}`
+  const diagnosticState = captionsMode
+    ? `captions:${captions.state.phase}:${captions.state.microphone}:${captions.state.lines.length}:${Boolean(captions.state.error)}`
+    : `${mode}:${state.phase}:${listening.phase}:${listening.microphone}:${listening.queued}:${listening.dropped}:${listening.ignored}:${Boolean(state.error)}`
   if (diagnosticState !== lastDiagnosticState) {
     lastDiagnosticState = diagnosticState
     diagnostics.record(
       mode === 'manual' ? 'app' : 'continuous',
       'state.changed',
-      { phase: mode === 'manual' ? state.phase : listening.phase, queued: listening.queued, dropped: listening.dropped, ignored: listening.ignored },
+      captionsMode
+        ? { phase: captions.state.phase, queued: captions.state.queued, dropped: captions.state.dropped }
+        : { phase: mode === 'manual' ? state.phase : listening.phase, queued: listening.queued, dropped: listening.dropped, ignored: listening.ignored },
       state.error ? 'error' : 'info'
     )
   }
   element('listening').textContent = status
-  const baseText = mode === 'manual' ? view.text : continuousHud(listening)
-  const line = capture.state.phase === 'idle' ? sessionLine : capture.statusLine()
+  const baseText = captionsMode ? captionsHud(captions.state) : mode === 'manual' ? view.text : continuousHud(listening)
+  const line = captionsMode ? '' : capture.state.phase === 'idle' ? sessionLine : capture.statusLine()
   const displayText = line ? `${line}\n${baseText}` : baseText
   element('previous').hidden = element('next').hidden = mode !== 'manual'
-  const header = statusMonitor.header(mode === 'manual' ? ['starting', 'recording', 'transcribing', 'answering'].includes(state.phase) : listening.microphone === 'on')
+  const header = statusMonitor.header(
+    mode === 'manual' ? ['starting', 'recording', 'transcribing', 'answering'].includes(state.phase) : captionsMode ? captions.state.microphone === 'on' : listening.microphone === 'on'
+  )
   element('status-left').textContent = header.left
   element('status-right').textContent = header.right
   element('hud').textContent = displayText
-  display?.update(JSON.stringify({ content: displayText, ...header, mode, hintId: mode !== 'manual' ? listening.reply?.id : undefined }))
-  element('transcript').textContent = state.transcript || 'Your spoken question will appear here.'
-  element('answer').textContent = state.answer || 'Waiting for your first question.'
-  element('error').textContent = state.error
+  display?.update(JSON.stringify({ content: displayText, ...header, mode, hintId: mode === 'continuous' || mode === 'simulation' ? listening.reply?.id : undefined }))
+  element('transcript').textContent = captionsMode ? captions.state.caption || 'Live captions appear here. Nothing is stored.' : state.transcript || 'Your spoken question will appear here.'
+  element('answer').textContent = captionsMode ? captions.state.notice : state.answer || 'Waiting for your first question.'
+  element('error').textContent = captionsMode ? captions.state.error : state.error
   renderHistory()
-  const busy = switchingMode || isBusy(mode, state, listening)
+  const busy = switchingMode || (mode === 'captions' ? captionsHoldMicrophone() : isBusy(mode, state, listening))
   for (const id of ['conversation-mode', 'prep-notes', 'web-enabled', 'apply-conversation']) (element(id) as HTMLInputElement).disabled = busy
   element<HTMLSelectElement>('speech-threshold').disabled = busy
-  element<HTMLButtonElement>('listen').disabled = mode === 'manual' || busy
-  element<HTMLButtonElement>('pause').disabled = mode === 'manual' || switchingMode
+  element<HTMLButtonElement>('listen').disabled = mode === 'manual' || mode === 'captions' || busy
+  element<HTMLButtonElement>('pause').disabled = mode === 'manual' || mode === 'captions' || switchingMode
   element<HTMLButtonElement>('inject').disabled = mode !== 'simulation' || listening.microphone !== 'on'
   element<HTMLButtonElement>('record').textContent = state.phase === 'recording' ? `Send question · ${state.seconds}s` : 'Start question'
   element<HTMLButtonElement>('record').disabled = mode !== 'manual' || switchingMode || ['starting', 'transcribing', 'answering'].includes(state.phase)
@@ -201,7 +239,7 @@ function paint() {
   element<HTMLButtonElement>('demo').disabled = busy
   element<HTMLInputElement>('question').disabled = busy || mode !== 'manual'
   element<HTMLFormElement>('ask').querySelector<HTMLButtonElement>('button')!.disabled = busy || mode !== 'manual'
-  element('history-section').hidden = !historyVisible(mode)
+  element('history-section').hidden = mode === 'captions' ? true : !historyVisible(mode)
   element<HTMLSelectElement>('mode').disabled = switchingMode
 }
 function apply() {
@@ -269,24 +307,31 @@ element('record').addEventListener('click', () => {
   void controller.tap()
 })
 const pauseAll = async (interrupted = false) => {
-  await Promise.all([controller.cancel(interrupted), continuous.pause(interrupted), simulation.pause(interrupted)])
+  const tasks = [controller.cancel(interrupted), continuous.pause(interrupted), simulation.pause(interrupted)]
+  // Captions keep their last line for reading, so only a held microphone needs releasing here.
+  if (captionsHoldMicrophone()) tasks.push(captions.pause())
+  await Promise.all(tasks)
 }
 element('cancel').addEventListener('click', () => {
   void pauseAll()
 })
 element('mode').addEventListener('change', async () => {
   switchingMode = true
+  const previousMode = mode
   paint()
   await pauseAll()
-  if (continuous.state.microphone !== 'off') {
+  if (continuous.state.microphone !== 'off' || captions.state.microphone !== 'off') {
     element<HTMLSelectElement>('mode').value = mode
-    element('conversation-status').textContent = modeSwitchNote(continuous.state) || 'Pause continuous listening before switching modes.'
+    element('conversation-status').textContent =
+      captions.state.microphone !== 'off' ? 'Stop captions before switching modes.' : modeSwitchNote(continuous.state) || 'Pause continuous listening before switching modes.'
     switchingMode = false
     paint()
     return
   }
   mode = element<HTMLSelectElement>('mode').value as typeof mode
   page = 0
+  // Leaving captions ends the mode, so its text does not linger in memory.
+  if (previousMode === 'captions' && mode !== 'captions') void captions.stop()
   switchingMode = false
   paint()
 })
@@ -359,12 +404,21 @@ element('speech-threshold').addEventListener('change', () => {
   const threshold = Number(element<HTMLSelectElement>('speech-threshold').value)
   continuous.setSpeechThreshold(threshold)
   simulation.setSpeechThreshold(threshold)
+  captions.setSpeechThreshold(threshold)
 })
+// Continuous listening and captions share one microphone, so the later start is refused instead of taking it over.
+const startContinuous = async () => {
+  if (captionsHoldMicrophone()) {
+    element('listening').textContent = 'Captions are using the microphone. Stop captions before starting continuous listening.'
+    return
+  }
+  await activeContinuous().start()
+}
 element('listen').addEventListener('click', () => {
-  if (!switchingMode && mode !== 'manual') void activeContinuous().start()
+  if (!switchingMode && mode !== 'manual' && mode !== 'captions') void startContinuous()
 })
 element('pause').addEventListener('click', () => {
-  void activeContinuous().pause()
+  if (mode !== 'captions') void activeContinuous().pause()
 })
 element('inject').addEventListener('click', () => {
   if (mode === 'simulation') simulateUtterance(simulation)
@@ -381,6 +435,7 @@ element('clear').addEventListener('click', () => {
   controller.clearHistory()
   continuous.clearHistory()
   simulation.clearHistory()
+  if (mode === 'captions') captions.clear()
   element('connection').textContent = 'Conversation context cleared.'
 })
 let exiting = false
@@ -413,6 +468,7 @@ window.addEventListener('pagehide', (event) => {
     clearInterval(statusTimer)
     sessions.dispose()
     void capture.dispose()
+    void captions.dispose()
     display?.dispose()
     even?.dispose()
   }
@@ -435,8 +491,12 @@ void connectEven(
       if (mode === 'manual') {
         page = 0
         void controller.tap()
+      } else if (mode === 'captions') {
+        // Tap is the glasses control for captions: start when off, stop and clear when on.
+        if (captionsHoldMicrophone()) void captions.stop()
+        else void captions.start()
       } else if (activeContinuous().state.microphone === 'on') void activeContinuous().pause()
-      else void activeContinuous().start()
+      else void startContinuous()
     }
     if (action === 'exit') void exitApp()
     if (action === 'interrupt') {
@@ -473,6 +533,7 @@ void connectEven(
     }
     if (mode === 'manual') controller.onPcm(pcm)
     else if (mode === 'continuous') continuous.onPcm(pcm)
+    else if (mode === 'captions') captions.onPcm(pcm)
     capture.onPcm(pcm)
   }
 )

@@ -1,3 +1,19 @@
+# Captions mode
+
+Captions are a separate mode for reading live speech on the glasses without recording it. Nothing is stored: the mode creates no session, uploads no segment, sends no chat request, writes no archive and calls no `SessionClient` method. It asks the configured speech provider for final transcription only, so audio still leaves the phone to that provider; "not stored" describes this app and its gateway, not the inference provider.
+
+The mode reuses the continuous microphone port and VAD segmenter. A final line appears after 2,000 ms of silence, exactly like continuous mode. Captions keep at most 50 final lines in memory, and every line is cut to 160 characters. Stopping the mode clears the current line and the history; pausing keeps the last line visible for reading but releases the microphone. Switching to another mode, hiding the WebView, leaving the page or reloading also ends or pauses the mode, so no transcript survives it.
+
+Controls: select **Captions** in Listening mode, then use the Captions panel in the Stored sessions section (Start captions / Stop captions / Clear captions) or tap the glasses. A tap starts captions when they are off and stops (and clears) them when they are on. Starting from the phone also selects Captions mode, so the glasses PCM reaches this mode.
+
+The microphone is one physical resource. If continuous listening, the continuous demo or a stored session already holds it, starting captions is refused with a visible message instead of silently taking it over. The reverse is guarded too: continuous listening refuses to start while captions hold the microphone, and a stored session cannot be opened or attached. Pausing or stopping the other mode is always explicit.
+
+The lens shows one header (`CAPTIONS / LIVE · NOT STORED`, `CAPTIONS / PAUSED · NOT STORED` or `CAPTIONS / OFF · NOT STORED`) and at most four lines of the newest caption. There is no paging and no hint area. The phone shows the same line, the bounded history and the status line; the panel states that nothing is stored.
+
+Validation: `tests/captions.test.ts` covers start, stop clearing the text, the bounded history, the 160-character cut, a refused second start while another mode holds the microphone, dispose, and a panel that starts and stops a fake controller without calling the session API. Real G2 microphone quality, BLE interruptions and provider caption accuracy still need device testing.
+
+---
+
 # Changes in 0.3.2
 
 On real G2, the ten-second hint timer starts only after LatestDisplay receives a successful SDK write for the matching reply ID. Repeated/stale acknowledgements cannot reset or start another hint's timer. An unresolved write times out without starting another native write or acknowledging late resolution. Transient rejections retry at most twice; Retry display requeues the current frame, while a timed-out native session requires reopening. SDK success is an acknowledgement, not physical proof that the wearer read the text.
