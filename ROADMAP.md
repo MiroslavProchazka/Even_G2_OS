@@ -71,6 +71,8 @@ U každé fáze je uvedený cíl, závislosti, vlastněné soubory, kritéria p�
 
 **Odhad:** M, závisí na dostupnosti brýlí a uživatele.
 
+**Stav:** protokol hotový 27. 10. 2026, commit `3316e5e`; samotný běh na hardwaru čeká na uživatele.
+
 ### I3.2 Kvalita souhrnů na živém modelu
 
 **Cíl:** Změřit, jestli souhrny obsahují správná rozhodnutí a závazky, a zveřejnit chyby.
