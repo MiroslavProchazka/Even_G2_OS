@@ -1,6 +1,6 @@
 import { dependencies, version } from '../package.json'
 export type Level = 'info' | 'warn' | 'error'
-export type Stage = 'app' | 'sdk' | 'mic' | 'audio' | 'stt' | 'chat' | 'health' | 'display' | 'continuous'
+export type Stage = 'app' | 'sdk' | 'mic' | 'audio' | 'stt' | 'chat' | 'health' | 'display' | 'continuous' | 'session'
 export type Details = {
   status?: number
   durationMs?: number
@@ -42,7 +42,15 @@ const events = new Set([
   'answer.dropped',
   'segment.failed',
   'session.unresponsive',
-  'dispose.stop_failed'
+  'dispose.stop_failed',
+  'session.created',
+  'session.started',
+  'session.paused',
+  'session.ended',
+  'segment.uploaded',
+  'segment.upload_failed',
+  'summary.requested',
+  'preparation.created'
 ])
 const categories = new Set([
   'direct',
