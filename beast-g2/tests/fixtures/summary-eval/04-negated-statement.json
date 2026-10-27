@@ -1,0 +1,50 @@
+{
+  "name": "negated statement",
+  "language": "cs",
+  "notes": "Synthetic fixture for the summary evaluation harness. No real session data.",
+  "synthetic": true,
+  "turns": [
+    {
+      "id": "turn_04010000000000000000000000000000",
+      "revision": 1,
+      "startMs": 0,
+      "endMs": 15000,
+      "text": "Zavádění nového systému letos neplánujeme."
+    },
+    {
+      "id": "turn_04020000000000000000000000000000",
+      "revision": 1,
+      "startMs": 15000,
+      "endMs": 30000,
+      "text": "Rozhodně to nezastavujeme, jen posouváme."
+    },
+    {
+      "id": "turn_04030000000000000000000000000000",
+      "revision": 1,
+      "startMs": 30000,
+      "endMs": 45000,
+      "text": "Kdy to vrátíme na program?"
+    }
+  ],
+  "expected": {
+    "decisions": [],
+    "actionCandidates": [],
+    "openQuestions": ["Nový systém na program"]
+  },
+  "summary": {
+    "schemaVersion": 1,
+    "transcriptRevision": 1,
+    "overview": {
+      "text": "Tým letos nezavádí nový systém, start se jen odkládá.",
+      "citations": ["turn_04010000000000000000000000000000", "turn_04020000000000000000000000000000"]
+    },
+    "decisions": [],
+    "actionCandidates": [],
+    "openQuestions": [
+      {
+        "text": "Kdy se nový systém vrátí na program?",
+        "citations": ["turn_04030000000000000000000000000000"]
+      }
+    ]
+  }
+}
