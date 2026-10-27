@@ -16,6 +16,7 @@ sized for parallel agents, is in [ROADMAP.md](../../ROADMAP.md).
 | [CONTINUOUS.md](CONTINUOUS.md) | Continuous listening and hint queue |
 | [CONVERSATION.md](CONVERSATION.md) | Conversation context and phone history |
 | [SESSIONS.md](SESSIONS.md) | Stored sessions, WAV import, retention, export and deletion |
+| [MEMORY.md](MEMORY.md) | Memory items, approval, replacement, source deletion and the kept-memory list |
 | [HARDWARE-TEST.md](HARDWARE-TEST.md) | Repeatable test protocol for the real Even G2 |
 | [SPEECH-AND-WEB.md](SPEECH-AND-WEB.md) | Speech quality and optional web evidence |
 | [WEB.md](WEB.md) | Web search contract and privacy boundaries |

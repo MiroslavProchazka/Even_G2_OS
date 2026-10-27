@@ -247,6 +247,8 @@ class FakeMemoryClient {
   items: MemoryItem[] = []
   listCalls = 0
   memoryCalls: Array<{ id: string; options?: { status?: MemoryStatus | 'all'; query?: string } }> = []
+  retainedCalls: Array<{ status?: MemoryStatus | 'all'; query?: string }> = []
+  retainedItems: MemoryItem[] = []
   detailCalls: string[] = []
   proposals: Array<{ id: string; input: ProposeMemoryInput }> = []
   statusCalls: Array<{ id: string; memoryId: string; status: 'approved' | 'rejected' }> = []
@@ -266,6 +268,11 @@ class FakeMemoryClient {
   async memoryForSession(id: string, options?: { status?: MemoryStatus | 'all'; query?: string }) {
     this.memoryCalls.push({ id, options })
     return { items: this.items }
+  }
+
+  async listRetainedMemory(options?: { status?: MemoryStatus | 'all'; query?: string }) {
+    this.retainedCalls.push(options ?? {})
+    return { items: this.retainedItems }
   }
 
   async proposeMemory(id: string, input: ProposeMemoryInput) {
@@ -464,6 +471,23 @@ test('a session-list refresh fills the picker and preserves the selected id', as
   notify([session({ id: 'ses_1', name: 'First' }), session({ id: 'ses_2', name: 'Second' })])
   await settle()
   assert.equal(select.value, 'ses_2')
+})
+
+test('kept memory stays visible and read-only after its source session is gone', async (t) => {
+  const client = new FakeMemoryClient()
+  client.retainedItems = [item({ id: 'mem_kept', sessionId: 'ses_deleted', text: 'Kept claim', sourceDeleted: true, evidenceState: 'lost' })]
+  const { dom, container, errors } = mount(client)
+  t.after(dom.restore)
+  await settle()
+
+  assert.match(container.textContent, /Kept memory/)
+  assert.match(container.textContent, /Kept claim/)
+  assert.equal(client.retainedCalls.length, 1)
+  assert.equal(client.retainedCalls[0]!.status, 'all')
+  const source = findButton(container, 'Open source')!
+  assert.equal(source.disabled, true)
+  assert.equal(findAll(container, (element) => element.tagName === 'BUTTON' && element.textContent === 'Approve').length, 0)
+  assert.deepEqual(errors, [])
 })
 
 test('the panel falls back to client.list when the host has no session subscription', async (t) => {

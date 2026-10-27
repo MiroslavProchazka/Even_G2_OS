@@ -29,11 +29,12 @@ and `(workspace_id, status, created_at)`.
 
 ## API
 
-All routes require `Authorization: Bearer <gateway token>` and accept only ids of the
-session in the path.
+All routes require `Authorization: Bearer <gateway token>`. The per-session routes accept only ids of the
+session in the path; the kept list has no session to name.
 
 | Method and path | Purpose |
 | --- | --- |
+| `GET /api/memory?status=&query=` | Kept items whose source session was deleted. Workspace-wide, every status by default; read-only in the panel. |
 | `GET /api/sessions/:id/memory?status=&query=` | Items of one session. `status` defaults to `approved`; `proposed`, `rejected`, `superseded` and `all` are for the panel. |
 | `POST /api/sessions/:id/memory` | Propose one item. Body: `turnId`, `revision`, `kind`, `text`. Returns `201`. |
 | `GET /api/sessions/:id/memory/:memoryId` | One approved item. `404` for proposed, rejected or superseded items. |
@@ -86,6 +87,11 @@ in the path; another session's items are never returned.
 Approved items are used only on an explicit request from the panel or this retrieval route. They are
 never injected into chat, hints or a summary automatically.
 
+`GET /api/memory` is the only cross-session read. It returns only items whose source session was deleted
+and the user chose `keepMemory=1`; normal retrieval stays scoped to one session. The panel shows these kept
+items in a separate read-only list with `Source deleted · evidence lost`. They can be opened by id through the
+per-session item route, but they cannot be approved, rejected or replaced after the source is gone.
+
 ## Replacement
 
 `POST /api/sessions/:id/memory/:memoryId/supersede` creates a new `proposed` item from the same
@@ -100,7 +106,8 @@ omitted.
 `DELETE /api/sessions/:id` deletes the memory items derived from the session by default.
 `DELETE /api/sessions/:id?keepMemory=1` keeps them: each surviving row gets
 `sourceDeleted: true`, `evidenceState: "lost"` and a new `updatedAt`, while its text and status
-stay. The item no longer has a turn to point at, and the panel must show that its evidence is gone.
+stay. The item no longer has a turn to point at, and the panel shows its evidence as gone in the
+read-only kept-memory list. `GET /api/memory` lists those kept items workspace-wide.
 The same rule runs in the transaction that removes the session, so a failure rolls both back.
 
 A trigger on `sessions` applies the default rule to every other deletion path, including the
@@ -111,7 +118,8 @@ before its session row disappears, so the trigger leaves it alone.
 ## Limits
 
 - No embeddings, no semantic ranking and no retrieval across sessions: `query` is a folded
-  substring match over the items of one session.
+  substring match over the items of one session. `GET /api/memory` is the single exception and
+  returns only items kept after their source session was deleted.
 - No automatic injection: an approved item reaches a model only when the caller asks for it.
 - No confidence score, no owner and no due date on an item; a decision, a commitment, a fact, a
   preference and an open question share one shape.

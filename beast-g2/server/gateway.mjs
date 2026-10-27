@@ -296,7 +296,7 @@ export function createGateway(config, fetchImpl = fetch) {
         summaries: Boolean(config.summaries),
         requestId: id
       })
-    if (route === '/api/sessions' || route.startsWith('/api/sessions/')) {
+    if (route === '/api/sessions' || route.startsWith('/api/sessions/') || route === '/api/memory') {
       if (!config.sessions) return reject(404, 'sessions_disabled', 'Stored sessions are not enabled.')
       try {
         return await routeSessions({ req, res, route, service: config.sessions, summary: config.summaries, requestId: id })

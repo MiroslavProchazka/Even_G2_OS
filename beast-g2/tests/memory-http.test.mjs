@@ -253,6 +253,25 @@ test('HTTP memory applies the source-deletion rule with and without keepMemory',
   assert.deepEqual(survivor, { status: 'approved', sourceDeleted: 1, evidenceState: 'lost', text: keptProposal.text })
   const gone = await fetch(`${base}/api/sessions/${kept.session.id}/memory?status=all`, { headers: auth })
   assert.equal(gone.status, 404)
+  const retained = await fetch(`${base}/api/memory?status=all`, { headers: auth })
+  assert.equal(retained.status, 200)
+  const retainedBody = await retained.json()
+  assert.deepEqual(
+    retainedBody.items.map((item) => item.id),
+    [keptProposal.id]
+  )
+  assert.equal(retainedBody.items[0].sourceDeleted, true)
+  assert.equal(retainedBody.items[0].evidenceState, 'lost')
+  const retainedQuery = await fetch(`${base}/api/memory?query=rozpocet`, { headers: auth })
+  assert.deepEqual(
+    (await retainedQuery.json()).items.map((item) => item.id),
+    [keptProposal.id]
+  )
+  const retainedBadStatus = await fetch(`${base}/api/memory?status=deleted`, { headers: auth })
+  assert.equal(retainedBadStatus.status, 400)
+  assert.equal((await retainedBadStatus.json()).error, 'invalid_status')
+  const retainedPost = await fetch(`${base}/api/memory`, { method: 'POST', headers: json, body: '{}' })
+  assert.equal(retainedPost.status, 405)
 
   const dropped = await storedSession(base, sessions, 'Dropped session')
   const droppedProposal = (await (await propose(base, dropped.session.id, dropped.turns[0])).json()).item

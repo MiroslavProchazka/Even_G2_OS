@@ -56,6 +56,20 @@ export class MemoryEndpoints extends QaEndpoints {
     return this.json<MemoryList>(`/api/sessions/${encodeURIComponent(id)}/memory${suffix}`, {}, request)
   }
 
+  /**
+   * Items kept after their source session was deleted. This is the only cross-session memory read: the item has no session
+   * row left to open, so the panel lists it separately and marks its evidence as lost.
+   */
+  listRetainedMemory(options?: MemoryQuery & RequestOptions) {
+    const { status, query, ...request } = options ?? {}
+    const params = new URLSearchParams()
+    if (status) params.set('status', status)
+    if (query) params.set('query', query)
+    const queryString = params.toString()
+    const suffix = queryString ? `?${queryString}` : ''
+    return this.json<MemoryList>(`/api/memory${suffix}`, {}, request)
+  }
+
   proposeMemory(id: string, input: ProposeMemoryInput, options?: RequestOptions) {
     return this.post<MemoryResponse>(`/api/sessions/${encodeURIComponent(id)}/memory`, input, options)
   }

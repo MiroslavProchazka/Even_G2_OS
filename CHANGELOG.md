@@ -7,9 +7,10 @@ All notable changes to this repository are documented here. The format follows [
 ### Added
 
 - Session questions (`POST /api/sessions/:id/qa`) with strict turn citations, a bounded context and an explicit `insufficient_evidence` result; phone panel in Conversations.
+- Session memory items (`GET/POST/PATCH /api/sessions/:id/memory`) with a proposal from one exact turn revision, user approval or rejection, replacement with history, and source-deletion rules; the phone panel adds a read-only kept-memory list after a source session is deleted.
 - Opt-in contextual hints with a hard 30-second minimum spacing, pause/resume and local useful/distracting counters that store no content.
 - Retention sweep for expired audio and sessions (`scripts/retention-check.mjs`) with migration 004, a text-free `deleted_sessions` journal and `--deleted-from` for restores; manual `DELETE` writes the same tombstone.
-- Device build 0.8.0 for the questions, hints and retention changes.
+- Device build 0.9.0 for the questions, memory, hints and retention changes.
 - Continuous integration for the test suite and the TypeScript/Vite build on Node 20.18 and 22.
 - CodeQL analysis for JavaScript and TypeScript on push, pull request and a weekly schedule.
 - Repository hygiene job that fails when `.env`, `app.device.json` or an `.ehpk` package is tracked.
@@ -46,7 +47,7 @@ All notable changes to this repository are documented here. The format follows [
 ### Changed
 
 - Root `README.md` rewritten as a project overview. The client keeps its own release notes.
-- `app.json` version is now 0.7.0 for the search, captions and observability build.
+- `app.json` version is now 0.9.0 for the questions, memory, search, captions and observability build.
 - `app.json` declares English only, because the packer rejects `cs`; Czech remains a speech language option in the settings.
 - CI actions are pinned to commit SHAs, and the client build is checked by ESLint and Prettier.
 - `SECURITY.md` now states exactly which client data is kept in memory and which settings are saved.

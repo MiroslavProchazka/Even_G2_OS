@@ -1,5 +1,6 @@
-// Memory items of one stored session.
+// Memory items of one stored session, plus the workspace-wide list of items kept after their source session was deleted.
 //
+//   GET   /api/memory?status=&query=                 kept items only, every status by default
 //   GET   /api/sessions/:id/memory?status=&query=
 //   POST  /api/sessions/:id/memory                  { turnId, revision, kind, text }
 //   GET   /api/sessions/:id/memory/:memoryId         approved items only
@@ -10,11 +11,13 @@
 // match(parts) decides, handle(ctx) responds. See docs/MEMORY.md.
 import { ApiError } from '../../errors.mjs'
 import { readJsonBody, sendJson } from '../../http-util.mjs'
-import { getMemoryItem, listMemoryItems, proposeMemoryItem, setMemoryStatus, supersedeMemoryItem } from '../memory.mjs'
+import { getMemoryItem, listMemoryItems, listRetainedMemoryItems, proposeMemoryItem, setMemoryStatus, supersedeMemoryItem } from '../memory.mjs'
 import { methodNotAllowed } from './respond.mjs'
 
 export function match(parts) {
-  if (parts[0] !== 'api' || parts[1] !== 'sessions' || !parts[2] || parts[3] !== 'memory') return false
+  if (parts[0] !== 'api') return false
+  if (parts[1] === 'memory') return parts.length === 2
+  if (parts[1] !== 'sessions' || !parts[2] || parts[3] !== 'memory') return false
   if (parts.length === 4) return true
   if (!parts[4]) return false
   if (parts.length === 5) return true
@@ -22,6 +25,17 @@ export function match(parts) {
 }
 
 export async function handle({ req, res, sessionId, parts, query, service, requestId }) {
+  if (parts[1] === 'memory') {
+    if (req.method !== 'GET') return methodNotAllowed(res, ['GET'], requestId)
+    const items = listRetainedMemoryItems({
+      repo: service.repo,
+      workspaceId: service.workspace.id,
+      status: query.get('status') ?? undefined,
+      query: query.get('query') ?? undefined
+    })
+    return sendJson(res, 200, { items, requestId })
+  }
+
   const memoryId = parts[4]
 
   if (!memoryId) {

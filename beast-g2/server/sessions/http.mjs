@@ -1,6 +1,6 @@
-// Thin dispatcher for /api/sessions. Route modules live in routes/ and are ordered in
-// routes/index.mjs. This file owns the prefix check, the 404 fallback and the shared
-// 405 helper (routes/respond.mjs) that every route module uses.
+// Thin dispatcher for /api/sessions and the workspace-wide /api/memory list. Route modules live in routes/ and are
+// ordered in routes/index.mjs. This file owns the prefix check, the 404 fallback and the shared 405 helper
+// (routes/respond.mjs) that every route module uses.
 import { routes } from './routes/index.mjs'
 import { methodNotAllowed, notFound } from './routes/respond.mjs'
 
@@ -9,7 +9,8 @@ export { methodNotAllowed }
 export function createRouter(registry = routes) {
   return async function routeSessions({ req, res, route, service, summary, requestId }) {
     const parts = route.split('/').filter(Boolean)
-    if (parts[0] !== 'api' || parts[1] !== 'sessions') return false
+    if (parts[0] !== 'api') return false
+    if (parts[1] !== 'sessions' && parts[1] !== 'memory') return false
     const ctx = {
       req,
       res,

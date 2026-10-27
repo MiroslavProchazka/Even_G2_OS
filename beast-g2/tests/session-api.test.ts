@@ -97,6 +97,7 @@ test('the public barrel keeps the whole client surface on one prototype', () => 
     'preparation',
     'preparations',
     'memoryForSession',
+    'listRetainedMemory',
     'proposeMemory',
     'setMemoryStatus',
     'supersedeMemory'
@@ -154,6 +155,17 @@ test('a memory read through the barrel sends the status and query filters', asyn
   const result = await new SessionClient(() => settings).memoryForSession('ses_1', { status: 'approved', query: 'budget plan' })
   assert.deepEqual(result.items, [])
   assert.equal(url, 'https://gateway.example.com/api/sessions/ses_1/memory?status=approved&query=budget+plan')
+})
+
+test('a retained memory read goes to the workspace route with the filters', async (t) => {
+  let url = ''
+  stub(t, async (input) => {
+    url = String(input)
+    return Response.json({ items: [] })
+  })
+  const result = await new SessionClient(() => settings).listRetainedMemory({ status: 'all', query: 'budget plan' })
+  assert.deepEqual(result.items, [])
+  assert.equal(url, 'https://gateway.example.com/api/memory?status=all&query=budget+plan')
 })
 
 test('a memory proposal through the barrel posts the exact turn id, revision, kind and claim', async (t) => {

@@ -16,7 +16,7 @@ import a domain file directly.
 | `src/session-api/summary.ts` | summary and preparation types, `SummaryEndpoints` with their routes |
 | `src/session-api/search.ts` | transcript search types and `SearchEndpoints` |
 | `src/session-api/qa.ts` | question, citation and evidence types, `QaEndpoints` |
-| `src/session-api/memory.ts` | memory item, status and evidence types, `MemoryEndpoints` |
+| `src/session-api/memory.ts` | memory item, status and evidence types, `MemoryEndpoints`; per-session and kept-memory reads |
 
 Domains compose by inheritance: `SessionClient extends MemoryEndpoints extends QaEndpoints extends SearchEndpoints extends
 SummaryEndpoints extends SessionClientBase`. Every domain class takes the settings provider from the base and calls `this.json`,
@@ -51,7 +51,7 @@ Rules:
 | `src/sessions/panels/search.ts` | full-text search input, debounced query, results and selection through the host |
 | `src/sessions/panels/captions.ts` | Captions start/stop controls; it never creates a session |
 | `src/sessions/panels/qa.ts` | question form, evidence badge and citation chips |
-| `src/sessions/panels/memory.ts` | memory proposals, approval, rejection, replacement and source opening; explicit retrieval only |
+| `src/sessions/panels/memory.ts` | memory proposals, approval, rejection, replacement, source opening and the read-only kept list; explicit retrieval only |
 | `src/sessions/panels/hints.ts` | opt-in hint toggle, spacing, pause and local feedback counters |
 | `src/sessions/panels/dom.ts` | the `el` and `button` helpers shared by the section and its panels |
 

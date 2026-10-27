@@ -81,19 +81,30 @@ export const memoryPanel = {
     const emptyState = el('p', 'hint sessions-memory-empty', 'No memory items for this session yet.')
     const list = el('ul', 'sessions-memory-list')
 
+    const retained = el('div', 'sessions-memory-retained')
+    retained.hidden = true
+    const retainedList = el('ul', 'sessions-memory-list')
+    retained.append(
+      el('h4', undefined, 'Kept memory'),
+      el('p', 'hint', 'These items outlived their source session. Their evidence is gone, so they stay read-only and are never injected automatically.'),
+      retainedList
+    )
+
     wrapper.append(
       el('p', 'hint', 'Memory items stay proposals until you approve them. This panel is explicit retrieval only: nothing is added to a conversation or a hint automatically.'),
       sessionLabel,
       status,
       form,
       emptyState,
-      list
+      list,
+      retained
     )
     section.append(wrapper)
 
     let currentSessionId: string | null = null
     let turns: SessionTurn[] = []
     let items: MemoryItem[] = []
+    let retainedItems: MemoryItem[] = []
     let replacingId: string | null = null
     let busy = false
     let token = 0
@@ -169,7 +180,7 @@ export const memoryPanel = {
       return replacement
     }
 
-    function renderItem(item: MemoryItem) {
+    function renderItem(item: MemoryItem, readOnly = false) {
       const row = el('li', 'sessions-memory-item')
       const head = el('div', 'session-section-head')
       head.append(el('span', `session-badge memory-status memory-status-${item.status}`, STATUS_LABELS[item.status]), el('span', 'memory-kind', KIND_LABELS[item.kind]))
@@ -186,29 +197,47 @@ export const memoryPanel = {
         })
       row.append(source)
 
-      const actions = el('div', 'actions memory-actions')
-      if (item.status === 'proposed') {
-        const approve = button('Approve', 'memory-approve')
-        approve.addEventListener('click', () => {
-          void setStatus(item, 'approved')
-        })
-        const reject = button('Reject', 'secondary memory-reject')
-        reject.addEventListener('click', () => {
-          void setStatus(item, 'rejected')
-        })
-        actions.append(approve, reject)
+      if (!readOnly) {
+        const actions = el('div', 'actions memory-actions')
+        if (item.status === 'proposed') {
+          const approve = button('Approve', 'memory-approve')
+          approve.addEventListener('click', () => {
+            void setStatus(item, 'approved')
+          })
+          const reject = button('Reject', 'secondary memory-reject')
+          reject.addEventListener('click', () => {
+            void setStatus(item, 'rejected')
+          })
+          actions.append(approve, reject)
+        }
+        if ((item.status === 'proposed' || item.status === 'approved') && replacingId !== item.id) {
+          const replaceButton = button('Replace', 'secondary memory-replace')
+          replaceButton.addEventListener('click', () => {
+            replacingId = item.id
+            renderItems()
+          })
+          actions.append(replaceButton)
+        }
+        row.append(actions)
+        if (replacingId === item.id) row.append(renderReplacement(item))
       }
-      if ((item.status === 'proposed' || item.status === 'approved') && replacingId !== item.id) {
-        const replaceButton = button('Replace', 'secondary memory-replace')
-        replaceButton.addEventListener('click', () => {
-          replacingId = item.id
-          renderItems()
-        })
-        actions.append(replaceButton)
-      }
-      row.append(actions)
-      if (replacingId === item.id) row.append(renderReplacement(item))
       return row
+    }
+
+    function renderRetained() {
+      retainedList.replaceChildren()
+      retained.hidden = retainedItems.length === 0
+      for (const item of retainedItems) retainedList.append(renderItem(item, true))
+    }
+
+    async function loadRetained() {
+      try {
+        const response = await deps.client.listRetainedMemory({ status: 'all' })
+        retainedItems = response.items
+        renderRetained()
+      } catch {
+        retained.hidden = true
+      }
     }
 
     async function reloadItems() {
@@ -307,6 +336,7 @@ export const memoryPanel = {
     }
 
     function renderSessions(sessions: Session[]) {
+      void loadRetained()
       const previous = sessionSelect.value || currentSessionId || ''
       sessionSelect.replaceChildren()
       for (const session of sessions) {

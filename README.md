@@ -9,13 +9,13 @@ Personal playground for building on [Even Realities G2](https://www.evenrealitie
 
 | Project | What it does | Version |
 | --- | --- | --- |
-| [`beast-g2/`](beast-g2/) | Voice client for a self-hosted Beast service: glasses microphone → Whisper → chat model → glasses display | 0.5.0 |
+| [`beast-g2/`](beast-g2/) | Voice client for a self-hosted Beast service: glasses microphone → Whisper → chat model → glasses display | 0.9.0 |
 
 ## beast-g2
 
 An early Even Realities G2 client for a self-hosted Beast service. TypeScript/Vite frontend, a small dependency-free Node gateway, and a clearly marked local demo. Nothing is hosted for you: the gateway runs on your own machine and proxies to your own OpenAI-compatible endpoint.
 
-**Status:** cloud-reviewed development build. Stored sessions, summaries, preparation snapshots, transcript search, questions with citations, opt-in hints, Captions mode and the phone Conversations panel are implemented and covered by tests; G2 capture is verified in the official EvenHub simulator. Request logging is content-free with a bounded in-memory ring, and retention has a text-free deletion journal with a restore import. Live Beast API compatibility, real glasses capture, lock-screen survival and deployment are not yet verified. See [verification](beast-g2/docs/CLOUD-VERIFICATION.md), [design](beast-g2/docs/ANALYSIS.md), [handoff](beast-g2/docs/HANDOFF.md) and the [roadmap](ROADMAP.md) for the staged plan.
+**Status:** cloud-reviewed development build. Stored sessions, summaries, preparation snapshots, transcript search, questions with citations, session memory items with approval and source-deletion rules, opt-in hints, Captions mode and the phone Conversations panel are implemented and covered by tests; G2 capture is verified in the official EvenHub simulator. Request logging is content-free with a bounded in-memory ring, and retention has a text-free deletion journal with a restore import. Live Beast API compatibility, real glasses capture, lock-screen survival and deployment are not yet verified. See [verification](beast-g2/docs/CLOUD-VERIFICATION.md), [design](beast-g2/docs/ANALYSIS.md), [handoff](beast-g2/docs/HANDOFF.md) and the [roadmap](ROADMAP.md) for the staged plan.
 
 ### Run locally
 

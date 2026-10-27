@@ -74,6 +74,7 @@ All routes require `Authorization: Bearer <gateway-token>`.
 | `POST /api/sessions/:id/preparation` | Select a past summary as preparation. Body: `sourceSummaryId`, optional `focus`. |
 | `GET /api/sessions/:id/preparation` | Latest preparation for the target session, with source date and citations. |
 | `GET /api/sessions/:id/preparations` | Preparation history for the target session. |
+| `GET /api/memory?status=&query=` | Kept memory items whose source session was deleted. Workspace-wide and read-only. |
 | `GET /api/sessions/:id/memory?status=&query=` | Approved memory items by default; `status=all` is for the review panel. |
 | `POST /api/sessions/:id/memory` | Propose one memory item. Body: `turnId`, `revision`, `kind`, `text`. |
 | `GET /api/sessions/:id/memory/:memoryId` | One approved memory item. |
@@ -184,7 +185,8 @@ substring of the item text. Another session's items are never returned.
 
 Deleting the source session deletes its memory items. `DELETE /api/sessions/:id?keepMemory=1`
 keeps them with `sourceDeleted: true` and `evidenceState: "lost"`, because the turn they quote no
-longer exists. The retention sweep follows the default rule and removes them with the session.
+longer exists. The retention sweep follows the default rule and removes them with the session. The panel
+lists kept items in a separate read-only block; `GET /api/memory` exposes the same list workspace-wide.
 
 ## Summaries and preparation
 

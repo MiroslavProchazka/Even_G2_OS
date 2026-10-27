@@ -150,7 +150,7 @@ U každé fáze je uvedený cíl, závislosti, vlastněné soubory, kritéria p�
 
 **Závisí na:** I4.0.
 
-**Vlastní soubory:** `beast-g2/server/sessions/migrations/004-memory.mjs` (nový), `beast-g2/server/sessions/memory.mjs` (nový), `beast-g2/server/sessions/routes/memory.mjs` (nový), `beast-g2/src/session-api/memory.ts` (nový), `beast-g2/src/sessions/panels/memory.ts` (nový), `beast-g2/tests/memory.test.mjs` (nový).
+**Vlastní soubory:** `beast-g2/server/sessions/migrations/005-memory.mjs` (nový), `beast-g2/server/sessions/memory.mjs` (nový), `beast-g2/server/sessions/routes/memory.mjs` (nový), `beast-g2/src/session-api/memory.ts` (nový), `beast-g2/src/sessions/panels/memory.ts` (nový), `beast-g2/tests/memory.test.mjs` (nový), `beast-g2/tests/memory-http.test.mjs` (nový), `beast-g2/tests/memory-panel.test.ts` (nový).
 
 **Kritéria přijetí:** Kandidát vzniká jen z konkrétního turnu a revize. Stav je `proposed`, `approved`, `superseded` nebo `rejected`. Retrieval vrací jen `approved`. Nahrazení zachová historii a označí staré tvrzení. Smazání zdrojové relace smaže i odvozené položky, pokud uživatel výslovně nezvolí ponechání s označením ztráty důkazu. Testy pokrývají schválení, odmítnutí, nahrazení, smazání zdroje a přístup k neschválenému.
 
@@ -369,7 +369,7 @@ Pravidlo pro `src/main.ts`: v jedné vlně ho mění nejvýše jedna fáze. Kdy�
 | I4.0 | žádné produktové požadavky, jen umožnění I4.1 až I6 |
 | I4.1 | OQ-06, FR-01 (rozšíření), FR-09 (rozšíření) |
 | I4.2 | FR-02 (dotazy nad přepisem), FR-07 (citace) |
-| I4.3 | nové požadavky na paměť, které je potřeba doplnit do Product_spec.md před implementací |
+| I4.3 | FR-13, sekce 7 paměť |
 | I4.4 | CR-10 (Captions jako malá iterace) |
 | I4.5 | CR-10, sekce 10 |
 | I5.1 | sekce 11 |

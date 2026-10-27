@@ -7,7 +7,18 @@ import path from 'node:path'
 import { openDatabase } from '../server/sessions/db.mjs'
 import { Repository } from '../server/sessions/repository.mjs'
 import { SessionService } from '../server/sessions/service.mjs'
-import { MEMORY_KINDS, deleteMemoryForSession, foldText, getMemoryItem, listMemoryItems, memoryItemId, proposeMemoryItem, setMemoryStatus, supersedeMemoryItem } from '../server/sessions/memory.mjs'
+import {
+  MEMORY_KINDS,
+  deleteMemoryForSession,
+  foldText,
+  getMemoryItem,
+  listMemoryItems,
+  listRetainedMemoryItems,
+  memoryItemId,
+  proposeMemoryItem,
+  setMemoryStatus,
+  supersedeMemoryItem
+} from '../server/sessions/memory.mjs'
 
 const NOW = 1_800_000_000_000
 const HEX = () => randomUUID().replaceAll('-', '')
@@ -310,6 +321,35 @@ test('deleting the source session deletes derived items unless they are kept', (
   const retentionItem = propose(fx, retention.session, retention.turn)
   fx.repo.deleteSession(retention.session.id)
   assert.equal(getMemoryItem({ repo: fx.repo, sessionId: retention.session.id, memoryId: retentionItem.id }), null, 'a plain session delete removes derived items too')
+})
+
+test('kept items are listed across sessions after their source is gone', (t) => {
+  const fx = fixture(t)
+  const kept = sessionWithTurn(fx, 'Kept session')
+  const keptItem = propose(fx, kept.session, kept.turn, { text: 'Zrušit schůzku kvůli rozpočtu.' })
+  setMemoryStatus({ repo: fx.repo, sessionId: kept.session.id, memoryId: keptItem.id, status: 'approved', now: NOW + 1 })
+  const dropped = sessionWithTurn(fx, 'Dropped session')
+  const droppedItem = propose(fx, dropped.session, dropped.turn, { text: 'Smazat tuto položku.' })
+  setMemoryStatus({ repo: fx.repo, sessionId: dropped.session.id, memoryId: droppedItem.id, status: 'approved', now: NOW + 2 })
+
+  assert.equal(fx.service.deleteSession(kept.session.id, { keepMemory: true }), true)
+  assert.equal(fx.service.deleteSession(dropped.session.id), true)
+
+  assert.deepEqual(
+    listRetainedMemoryItems({ repo: fx.repo, workspaceId: fx.workspaceId }).map((item) => item.id),
+    [keptItem.id],
+    'only items whose source was kept are listed'
+  )
+  assert.equal(listRetainedMemoryItems({ repo: fx.repo, workspaceId: fx.workspaceId })[0].sourceDeleted, true)
+  assert.deepEqual(
+    listRetainedMemoryItems({ repo: fx.repo, workspaceId: fx.workspaceId, query: 'ZRUSIT SCHUZKU' }).map((item) => item.id),
+    [keptItem.id]
+  )
+  assert.deepEqual(listRetainedMemoryItems({ repo: fx.repo, workspaceId: fx.workspaceId, query: 'smazat' }), [])
+  assert.equal(listRetainedMemoryItems({ repo: fx.repo, workspaceId: fx.workspaceId, status: 'approved' }).length, 1)
+  assert.equal(listRetainedMemoryItems({ repo: fx.repo, workspaceId: fx.workspaceId, status: 'proposed' }).length, 0)
+  rejects(() => listRetainedMemoryItems({ repo: fx.repo, workspaceId: fx.workspaceId, status: 'deleted' }), 400, 'invalid_status')
+  rejects(() => listRetainedMemoryItems({ repo: fx.repo, workspaceId: fx.workspaceId, query: 'x'.repeat(201) }), 400, 'invalid_query')
 })
 
 test('deleteMemoryForSession reports what it removed and keeps the rest', (t) => {

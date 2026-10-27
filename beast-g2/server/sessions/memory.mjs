@@ -154,6 +154,27 @@ export function listMemoryItems({ repo, sessionId, status, query } = {}) {
 }
 
 /**
+ * Kept items whose source session was deleted. This is the only cross-session read: normal retrieval stays scoped to one
+ * session, while a kept item has no session row left to open. The list is workspace-scoped, defaults to every status and
+ * supports the same folded query as the per-session list.
+ */
+export function listRetainedMemoryItems({ repo, workspaceId, status, query } = {}) {
+  const wanted = status === undefined || status === null || status === '' ? 'all' : status
+  if (wanted !== 'all' && !MEMORY_STATUSES.includes(wanted)) {
+    throw new ApiError(400, 'invalid_status', `status must be all or one of ${MEMORY_STATUSES.join(', ')}.`)
+  }
+  const needle = query === undefined || query === null ? '' : requireQuery(query)
+  const rows =
+    wanted === 'all'
+      ? repo.db.prepare(`SELECT ${memoryColumns} FROM memory_items WHERE workspace_id = ? AND source_deleted = 1 ORDER BY updated_at DESC, id DESC`).all(workspaceId)
+      : repo.db.prepare(`SELECT ${memoryColumns} FROM memory_items WHERE workspace_id = ? AND source_deleted = 1 AND status = ? ORDER BY updated_at DESC, id DESC`).all(workspaceId, wanted)
+  const items = rows.map(publicItem)
+  if (!needle) return items
+  const folded = foldText(needle)
+  return items.filter((item) => foldText(item.text).includes(folded))
+}
+
+/**
  * Approves or rejects a proposed item. The same status is idempotent and keeps the original timestamp; any other
  * transition, including leaving a rejected or superseded item, is a conflict.
  */

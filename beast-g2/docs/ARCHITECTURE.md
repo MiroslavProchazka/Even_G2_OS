@@ -15,15 +15,17 @@ conflict-free.
 | `server/sessions/routes/sessions.mjs` | Session lifecycle, segments, import, gaps, export, turn corrections. |
 | `server/sessions/routes/summaries.mjs` | Summaries and preparations. |
 | `server/sessions/routes/search.mjs` | Full-text transcript search; must stay before `sessions.mjs`. |
+| `server/sessions/routes/memory.mjs` | Memory items of one session and the workspace-wide kept list at `/api/memory`. |
 | `server/sessions/routes/qa.mjs` | Questions over one stored session with turn citations. |
 | `server/sessions/routes/respond.mjs` | Shared `methodNotAllowed` and `notFound` responders. |
 | `server/sessions/db.mjs` | SQLite open, pragmas and the `migrate()` runner. |
 | `server/sessions/migrations/index.mjs` | Ordered migration registry. |
-| `server/sessions/migrations/001-initial.mjs` … `004-retention.mjs` | One migration per file: `version` and `sql`. |
+| `server/sessions/migrations/001-initial.mjs` … `005-memory.mjs` | One migration per file: `version` and `sql`. |
 | `server/sessions/service.mjs` | Session domain logic (core session, transcript, coverage). |
 | `server/sessions/summary.mjs` | Summary and preparation domain logic. |
 | `server/sessions/search.mjs` | FTS5 query building and diacritic folding. |
 | `server/sessions/qa.mjs` | Bounded context, strict citation validation and the `insufficient_evidence` result. |
+| `server/sessions/memory.mjs` | Memory proposals, review, replacement, source deletion and the workspace-wide kept list. |
 | `server/sessions/retention.mjs` | Audio and session expiry, text-free deletion journal. |
 | `server/sessions/repository.mjs` | SQL queries; no HTTP knowledge. |
 | `server/sessions/worker.mjs` | Transcription and summary job runner. |
@@ -59,8 +61,11 @@ Rules:
 
 - The first module whose `match()` returns true handles the request. Order in
   `routes/index.mjs` is therefore significant; append new modules after existing ones
-  unless a specific path must win. `routes/search.mjs` is the one exception: it must stay
-  before `routes/sessions.mjs`, which would read `search` as a session id.
+  unless a specific path must win. `routes/search.mjs` must stay before
+  `routes/sessions.mjs`, which would read `search` as a session id. `routes/memory.mjs` and
+  `routes/qa.mjs` must also stay before it, because `sessions.mjs` would read `memory` or
+  `qa` as a session action. The session dispatcher accepts `/api/sessions/*` and the single
+  workspace route `/api/memory`.
 - A module that matches owns the response completely: status code, headers, body shape and
   body limits. Do not fall through after writing.
 - `handle()` may throw `ApiError`; the gateway maps it to the status and code. Do not catch
