@@ -154,7 +154,9 @@ U každé fáze je uvedený cíl, závislosti, vlastněné soubory, kritéria p�
 
 **Kritéria přijetí:** Kandidát vzniká jen z konkrétního turnu a revize. Stav je `proposed`, `approved`, `superseded` nebo `rejected`. Retrieval vrací jen `approved`. Nahrazení zachová historii a označí staré tvrzení. Smazání zdrojové relace smaže i odvozené položky, pokud uživatel výslovně nezvolí ponechání s označením ztráty důkazu. Testy pokrývají schválení, odmítnutí, nahrazení, smazání zdroje a přístup k neschválenému.
 
-**Mimo rozsah:** automatické potvrzování modelen, vektorové hledání, sdílení mezi prostory.
+**Stav:** hotovo 27. 10. 2026, commit `9913ef0`, 347 testů v `main`. Kandidát z konkrétního turnu a revize, schválení/odmítnutí/nahrazení, `keepMemory` s `evidenceState: "lost"`, panel a samostatný read-only seznam kept memory přes `GET /api/memory`. Ověření na G2 otevřené; automatické návrhy modelem nejsou součástí fáze.
+
+**Mimo rozsah:** automatické potvrzování modelem, vektorové hledání, sdílení mezi prostory.
 
 **Odhad:** L.
 
@@ -384,6 +386,7 @@ Pravidlo pro `src/main.ts`: v jedné vlně ho mění nejvýše jedna fáze. Kdy�
 
 ## 9. Historie
 
+- **1.4, 27. 10. 2026:** hotová I4.3; paměťové položky z konkrétního turnu a revize, schválení/odmítnutí/nahrazení, `keepMemory` s `evidenceState: "lost"`, workspace seznam kept memory přes `GET /api/memory`; 347 testů v `main`, commit `9913ef0`.
 - **1.3, 27. 10. 2026:** hotové I4.2, I4.5 a I7.3; manuální smazání relace zapisuje tombstone do `deleted_sessions`, retenční CLI umí `--deleted-from` při obnově zálohy; 317 testů v `main`.
 - **1.1, 27. 10. 2026:** hotové I4.0a, I4.0b, I3.2 a I7.1; doplněn stav u fází a rozhodnutí o dalším postupu.
 - **1.0, 27. 10. 2026:** první verze. Vychází ze stavu po I3, rozděluje I3 dokončení a etapy I4 až I7 na fáze, určuje vlny, vlastnictví souborů a rozhodovací body.

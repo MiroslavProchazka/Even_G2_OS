@@ -7,7 +7,7 @@ All notable changes to this repository are documented here. The format follows [
 ### Added
 
 - Session questions (`POST /api/sessions/:id/qa`) with strict turn citations, a bounded context and an explicit `insufficient_evidence` result; phone panel in Conversations.
-- Session memory items (`GET/POST/PATCH /api/sessions/:id/memory`) with a proposal from one exact turn revision, user approval or rejection, replacement with history, and source-deletion rules; the phone panel adds a read-only kept-memory list after a source session is deleted.
+- Session memory items (`GET/POST/PATCH /api/sessions/:id/memory`) with a proposal from one exact turn revision, user approval or rejection, replacement with history, source-deletion rules and a workspace-wide `GET /api/memory` list of kept items; the phone panel adds a read-only kept-memory list after a source session is deleted.
 - Opt-in contextual hints with a hard 30-second minimum spacing, pause/resume and local useful/distracting counters that store no content.
 - Retention sweep for expired audio and sessions (`scripts/retention-check.mjs`) with migration 004, a text-free `deleted_sessions` journal and `--deleted-from` for restores; manual `DELETE` writes the same tombstone.
 - Device build 0.9.0 for the questions, memory, hints and retention changes.
