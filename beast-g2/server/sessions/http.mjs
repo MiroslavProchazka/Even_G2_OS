@@ -6,7 +6,7 @@ function methodNotAllowed(res, allowed, requestId) {
   return sendJson(res, 405, { error: 'method_not_allowed', message: `Use ${allowed.join(', ')}.`, requestId })
 }
 
-export async function routeSessions({ req, res, route, service, requestId }) {
+export async function routeSessions({ req, res, route, service, summary, requestId }) {
   const parts = route.split('/').filter(Boolean)
   if (parts[0] !== 'api' || parts[1] !== 'sessions') return false
   const sessionId = parts[2]
@@ -99,6 +99,46 @@ export async function routeSessions({ req, res, route, service, requestId }) {
     if (method !== 'PATCH') return methodNotAllowed(res, ['PATCH'], requestId)
     const input = await readJsonBody(req, 8000)
     return sendJson(res, 200, { turn: service.correctTurn(sessionId, sub, input), requestId })
+  }
+
+  if (action === 'summary' || action === 'summaries' || action === 'preparation' || action === 'preparations') {
+    if (!summary) return sendJson(res, 404, { error: 'summaries_disabled', message: 'Summaries are not enabled.', requestId })
+    if (action === 'summary') {
+      if (method === 'GET') {
+        const result = sub ? summary.getSummary(sessionId, sub) : summary.getLatestSummary(sessionId)
+        return sendJson(res, 200, { summary: result, requestId })
+      }
+      if (method === 'POST') {
+        const input = await readJsonBody(req, 16000)
+        const result = summary.requestSummary(sessionId, input)
+        return sendJson(res, result.summary.status === 'pending' ? 202 : 200, { ...result, requestId })
+      }
+      return methodNotAllowed(res, ['GET', 'POST'], requestId)
+    }
+    if (action === 'summaries') {
+      if (method === 'GET') {
+        if (sub) return sendJson(res, 200, { summary: summary.getSummary(sessionId, sub), requestId })
+        return sendJson(res, 200, { summaries: summary.listSummaries(sessionId), requestId })
+      }
+      if (method === 'PATCH' && sub) {
+        const input = await readJsonBody(req, 200000)
+        return sendJson(res, 200, { summary: summary.updateSummary(sessionId, sub, input), requestId })
+      }
+      return methodNotAllowed(res, ['GET', 'PATCH'], requestId)
+    }
+    if (action === 'preparation') {
+      if (method === 'GET') {
+        const result = sub ? summary.getPreparation(sessionId, sub) : summary.getLatestPreparation(sessionId)
+        return sendJson(res, 200, { preparation: result, requestId })
+      }
+      if (method === 'POST') {
+        const input = await readJsonBody(req, 16000)
+        return sendJson(res, 201, { preparation: summary.createPreparation(sessionId, input), requestId })
+      }
+      return methodNotAllowed(res, ['GET', 'POST'], requestId)
+    }
+    if (method === 'GET') return sendJson(res, 200, { preparations: summary.listPreparations(sessionId), requestId })
+    return methodNotAllowed(res, ['GET'], requestId)
   }
 
   return sendJson(res, 404, { error: 'not_found', requestId })

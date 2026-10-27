@@ -9,7 +9,7 @@ if (demo && !['127.0.0.1', 'localhost', '::1'].includes(host)) throw new Error('
 if (!config.demo && !['127.0.0.1', 'localhost', '::1'].includes(host)) console.warn(`Gateway is bound to ${host} over plain HTTP. Put it behind a TLS tunnel before sending real tokens.`)
 const log = (entry) => console.log(JSON.stringify({ at: new Date().toISOString(), ...entry }))
 const sessions = createSessions({ config, logger: log })
-const server = createGateway({ ...config, sessions: sessions.service, log })
+const server = createGateway({ ...config, sessions: sessions.service, summaries: sessions.summary, log })
 server.on('close', () => sessions.db.close())
 server.listen(port, host, () => {
   sessions.worker.start()

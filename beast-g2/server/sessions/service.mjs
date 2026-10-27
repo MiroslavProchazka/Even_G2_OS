@@ -137,7 +137,30 @@ export class SessionService {
       segments: this.repo.listSegments(session.id).map(publicSegment),
       turns: this.repo.listTurns(session.id),
       gaps: this.repo.listGaps(session.id),
-      jobs: this.repo.listJobs(session.id)
+      jobs: this.repo.listJobs(session.id),
+      summaries: this.summaryService?.listSummaries(session.id) ?? [],
+      preparation: this.summaryService?.getLatestPreparation(session.id) ?? null
+    }
+  }
+
+  attachSummaryService(summaryService) {
+    this.summaryService = summaryService
+    return this
+  }
+
+  invalidateSummaries(sessionId, reason) {
+    try {
+      this.summaryService?.markStaleForSession(sessionId, reason)
+    } catch (error) {
+      this.logger({ event: 'summary.stale_failed', sessionId, error: error instanceof Error ? error.message.slice(0, 500) : 'Summary invalidation failed.' })
+    }
+  }
+
+  invalidateSummaryTurn(sessionId, turnId, reason) {
+    try {
+      this.summaryService?.markStaleForTurn(sessionId, turnId, reason)
+    } catch (error) {
+      this.logger({ event: 'summary.stale_failed', sessionId, error: error instanceof Error ? error.message.slice(0, 500) : 'Summary invalidation failed.' })
     }
   }
 
@@ -214,7 +237,8 @@ export class SessionService {
   endSession(sessionId, { writerId, lastSequence, reason = 'user' } = {}) {
     const writer = this.writerId(writerId)
     const now = this.now()
-    return this.repo.transaction(() => {
+    let gapsAdded = false
+    const ended = this.repo.transaction(() => {
       const session = this.requireSession(sessionId)
       if (session.status === 'ended') return session
       if (session.status !== 'active' && session.status !== 'paused') throw new ApiError(409, 'invalid_state', 'Session cannot be ended.')
@@ -224,6 +248,7 @@ export class SessionService {
         const present = new Set(this.repo.listSegments(session.id).map((segment) => segment.sequence))
         for (let sequence = 0; sequence <= max; sequence++) {
           if (present.has(sequence)) continue
+          gapsAdded = true
           this.repo.insertGap({
             id: id('gap'),
             sessionId: session.id,
@@ -246,12 +271,14 @@ export class SessionService {
       this.refreshCoverage(session.id)
       return this.repo.getSession(updated.id)
     })
+    if (gapsAdded) this.invalidateSummaries(sessionId, 'transcript_incomplete')
+    return ended
   }
 
   acceptSegment(sessionId, input = {}, { writerId } = {}) {
     const writer = this.writerId(writerId)
     const now = this.now()
-    return this.repo.transaction(() => {
+    const result = this.repo.transaction(() => {
       const session = this.requireSession(sessionId)
       if (session.status === 'paused') throw new ApiError(409, 'session_paused', 'Session is paused.')
       if (session.status !== 'active') throw new ApiError(409, 'session_not_active', 'Session is not active.')
@@ -320,6 +347,8 @@ export class SessionService {
       if (session.captureState !== 'on') this.repo.updateSession(session.id, { captureState: 'on' })
       return { segment: publicSegment(this.repo.getSegment(segmentId)), duplicate: false }
     })
+    if (!result.duplicate) this.invalidateSummaries(sessionId, 'transcript_extended')
+    return result
   }
 
   async importWav(sessionId, req, { writerId } = {}) {
@@ -382,13 +411,13 @@ export class SessionService {
 
   addGap(sessionId, input = {}) {
     const now = this.now()
-    return this.repo.transaction(() => {
+    const gap = this.repo.transaction(() => {
       const session = this.requireSession(sessionId)
       if (session.status === 'draft') throw new ApiError(409, 'session_not_started', 'Start the session before recording a gap.')
       const startMs = integer(input.startMs, 'startMs', 0, this.limits.maxSessionMs)
       const endMs = input.endMs === undefined || input.endMs === null ? null : integer(input.endMs, 'endMs', startMs + 1, this.limits.maxSessionMs)
       const reason = oneOf(input.reason, 'reason', [...GAP_REASONS])
-      const gap = this.repo.insertGap({
+      const inserted = this.repo.insertGap({
         id: id('gap'),
         sessionId: session.id,
         startMs,
@@ -398,8 +427,10 @@ export class SessionService {
         createdAt: now
       })
       this.refreshCoverage(session.id)
-      return gap
+      return inserted
     })
+    this.invalidateSummaries(sessionId, 'transcript_incomplete')
+    return gap
   }
 
   correctTurn(sessionId, turnId, input = {}) {
@@ -414,6 +445,7 @@ export class SessionService {
       const corrected = text(input.text, 'text', 1, 4000)
       const updated = this.repo.updateTurnText(turn.id, corrected, turn.revision + 1, 'manual', now)
       this.repo.updateSession(session.id, { transcriptRevision: session.transcriptRevision + 1 })
+      this.invalidateSummaryTurn(session.id, turn.id, 'transcript_corrected')
       return updated
     })
   }
@@ -422,7 +454,7 @@ export class SessionService {
     if (!['json', 'markdown'].includes(format)) throw new ApiError(400, 'invalid_format', 'Use json or markdown.')
     const detail = this.getSessionDetail(sessionId)
     const exported = {
-      formatVersion: 1,
+      formatVersion: 2,
       exportedAt: new Date(this.now()).toISOString(),
       session: detail.session,
       segments: detail.segments,
@@ -430,6 +462,8 @@ export class SessionService {
       revisions: this.repo.listRevisions(detail.session.id),
       gaps: detail.gaps,
       jobs: detail.jobs,
+      summaries: this.summaryService?.listSummaries(detail.session.id) ?? [],
+      preparations: this.summaryService?.listPreparations(detail.session.id) ?? [],
       completeness: {
         declared: detail.session.coverageDeclared,
         segments: detail.segments.length,
@@ -470,6 +504,7 @@ export class SessionService {
         this.refreshCoverage(segment.sessionId)
       })
       this.removeAudio(segment.audioPath)
+      if (segment.state === 'accepted') this.invalidateSummaries(segment.sessionId, 'transcript_incomplete')
     }
     const expiredSessions = this.repo.listExpiredSessions(now)
     for (const session of expiredSessions) this.deleteSession(session.id)
@@ -521,7 +556,8 @@ export class SessionService {
       return { turn: result.turn, created: result.created, limitReached, audioPath: segment.audioPath, segmentId: segment.id }
     })
     if (result.discarded) return result
-    if (result.created && result.audioPath) {
+    if (result.created) this.invalidateSummaries(job.sessionId, 'transcript_extended')
+    if (result.audioPath) {
       this.removeAudio(result.audioPath)
       this.repo.clearSegmentAudio(result.segmentId)
     }
@@ -560,6 +596,7 @@ export class SessionService {
       this.removeAudio(result.audioPath)
       this.repo.clearSegmentAudio(result.segmentId)
     }
+    if (result.failed) this.invalidateSummaries(job.sessionId, 'transcript_incomplete')
     return result
   }
 
@@ -630,6 +667,7 @@ export class SessionService {
       createdAt: this.now()
     })
     this.refreshCoverage(sessionId)
+    this.invalidateSummaries(sessionId, 'transcript_incomplete')
     return gap
   }
 
@@ -658,6 +696,7 @@ export class SessionService {
   }
 
   removeAudio(relativePath) {
+    if (!relativePath) return
     try {
       unlinkSync(this.audioPath(relativePath))
     } catch (error) {
@@ -691,6 +730,56 @@ export class SessionService {
     if (!exported.gaps.length) lines.push('_No known gaps._', '')
     for (const gap of exported.gaps) lines.push(`- ${clock(gap.startMs)}–${clock(gap.endMs)}: ${gap.reason} (${gap.state})`)
     lines.push('')
+    lines.push('## Summaries', '')
+    if (!exported.summaries.length) lines.push('_No summary._', '')
+    for (const summary of exported.summaries) {
+      lines.push(
+        `### ${summary.id} · ${summary.status} · transcript rev ${summary.transcriptRevision}${summary.reviewStatus === 'edited' ? ' · manually edited' : ''}`,
+        '',
+        summary.content.overview?.text ?? '',
+        ''
+      )
+      if (summary.content.decisions?.length) {
+        lines.push('#### Decisions', '')
+        for (const decision of summary.content.decisions) lines.push(`- ${decision.text} [${decision.citations.join(', ')}]`)
+        lines.push('')
+      }
+      if (summary.content.actionCandidates?.length) {
+        lines.push('#### Action candidates', '')
+        for (const action of summary.content.actionCandidates) {
+          const owner = action.owner ? `owner: ${action.owner}` : 'owner unknown'
+          const due = action.dueText ? `due: ${action.dueText}` : action.due ? `due: ${action.due}` : 'due unknown'
+          const conditional = action.conditional ? ', conditional proposal' : ''
+          lines.push(`- ${action.text} (${owner}, ${due}${conditional}) [${action.citations.join(', ')}]`)
+        }
+        lines.push('')
+      }
+      if (summary.content.openQuestions?.length) {
+        lines.push('#### Open questions', '')
+        for (const question of summary.content.openQuestions) lines.push(`- ${question.text} [${question.citations.join(', ')}]`)
+        lines.push('')
+      }
+      if (summary.citations?.length) {
+        lines.push('#### Citations', '')
+        for (const citation of summary.citations) lines.push(`- ${citation.turnId} rev ${citation.turnRevision}: ${citation.quote}`)
+        lines.push('')
+      }
+    }
+    lines.push('## Next preparation', '')
+    if (!exported.preparations.length) lines.push('_No preparation._', '')
+    for (const preparation of exported.preparations) {
+      const source = preparation.content.source ?? {}
+      lines.push(
+        `### ${preparation.id} · ${preparation.status}`,
+        '',
+        `Source: ${source.sessionName ?? source.sessionId ?? 'unknown'} · ${source.summaryId ?? 'unknown'} · ${source.sessionDate ?? 'unknown date'}`,
+        ''
+      )
+      if (preparation.content.focus) lines.push(`Focus: ${preparation.content.focus}`, '')
+      for (const decision of preparation.content.summary?.decisions ?? []) lines.push(`- Decision: ${decision.text} [${decision.citations.join(', ')}]`)
+      for (const action of preparation.content.summary?.actionCandidates ?? []) lines.push(`- Action: ${action.text} [${action.citations.join(', ')}]`)
+      lines.push('')
+    }
     return lines.join('\n')
   }
 }

@@ -251,7 +251,7 @@ test('90 second import is segmented, transcribed and exported with sources and r
   const other = started(service)
   assert.throws(() => service.correctTurn(other.id, detail.turns[0].id, { text: 'Cizí' }), /not found/)
   const exported = service.exportSession(session.id, 'json')
-  assert.equal(exported.formatVersion, 1)
+  assert.equal(exported.formatVersion, 2)
   assert.equal(exported.completeness.declared, 'complete')
   assert.equal(exported.completeness.transcribedSegments, 3)
   assert.equal(exported.turns[1].text, 'Opravený text')

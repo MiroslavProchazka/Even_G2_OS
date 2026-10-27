@@ -23,4 +23,12 @@ Implemented on 2026-10-26: opt-in SQLite session store, WAV segment upload and i
 
 Verified locally: 121 tests pass, lint and TypeScript/Vite build pass, coverage thresholds pass on Node 22.20, a 90-second WAV imports as three transcribed segments, audio files are removed after transcription, and a job left `running` is retried to `done` after a gateway restart.
 
-Still open for I1/MVP: client session list/detail and Resume/End UI, G2 capture writing into the same store, summary/task extraction, and real Beast STT/chat verification. `Product_spec.md` remains untracked and is the product source, not part of the implementation.
+Still open for I1/MVP: client session list/detail and Resume/End UI, G2 capture writing into the same store, and real Beast STT/chat verification.
+
+## Summaries and preparation — I2
+
+Implemented on 2026-10-26: structured summaries bound to a transcript revision, exact turn citations, decisions and action candidates with explicit owner/deadline or `null`, open questions, manual summary edits, staleness after transcript changes, asynchronous summary generation, and immutable preparation snapshots for a target session. New routes are documented in `docs/SESSIONS.md`; export format is now version 2.
+
+Verified locally on Node 20.18: 144 tests pass, lint and TypeScript/Vite build pass. Summary provider parsing and error handling are covered, migration v2 preserves v1 transcription jobs, the HTTP flow requests a summary after `end`, waits for `ready`, reads the latest summary and creates a preparation, and a new gap or a missing segment marks a ready summary stale. The coverage gate was not re-run locally because `better-sqlite3` in this checkout is built for Node 20 while the coverage threshold flags need a newer Node; CI still runs it. Still open: live Beast summary quality evaluation, client summary/preparation UI, task promotion into an external task system, and G2 capture integration.
+
+`Product_spec.md` is now tracked in the repository and remains the product source.

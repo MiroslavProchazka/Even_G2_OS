@@ -54,14 +54,20 @@ gaps, turn corrections, JSON/Markdown export and deletion. A background worker
 transcribes segments, retries transient failures and recovers unfinished jobs after a
 restart. Audio is deleted after transcription or after the audio retention window.
 
+Ended sessions can be summarized into structured decisions, action candidates and open
+questions with exact transcript citations. Summaries are bound to one transcript
+revision, become stale after a correction, and can be manually edited. A selected past
+summary can be stored as an immutable preparation for a new session. Summary generation
+is asynchronous and uses the same Beast chat model.
+
 ```sh
 npm run gateway:demo
 npm run session:import -- recording.wav --demo --name "Monday call" --out monday-call.md
+npm run session:summary -- <session-id> --demo --request --prepare --out summary.json
 ```
 
-See [stored sessions](docs/SESSIONS.md) for the API, limits, retention and failure
-behaviour. Summaries, task extraction and next-conversation preparation are later
-phases.
+See [stored sessions](docs/SESSIONS.md) for the API, limits, retention, summaries,
+preparation and failure behaviour.
 
 ## G2
 

@@ -23,6 +23,10 @@ All notable changes to this repository are documented here. The format follows [
 - Background transcription worker with bounded retries, restart recovery, writer leases, audio quotas, disk reserve and audio deletion after transcription or retention expiry.
 - `npm run session:import` CLI for importing a WAV file into a stored session and writing its export.
 - `docs/SESSIONS.md` with the session API, limits, retention and failure behaviour.
+- Structured session summaries bound to a transcript revision, with exact turn citations, decisions, action candidates, open questions, coverage and manual edits.
+- Asynchronous summary generation with chunking, provider JSON validation, single-flight runs, failure recovery and staleness after transcript, coverage or audio-retention changes.
+- Immutable preparation snapshots that select a past summary for a target session and keep source date, focus and citations.
+- Summary, summary-list, summary-edit, preparation and preparation-list API routes; session detail and export now include them.
 
 ### Changed
 
@@ -31,6 +35,7 @@ All notable changes to this repository are documented here. The format follows [
 - CI actions are pinned to commit SHAs, and the client build is checked by ESLint and Prettier.
 - `SECURITY.md` now states exactly which client data is kept in memory and which settings are saved.
 - The gateway now depends on `better-sqlite3` for the opt-in session store; chat and STT request handling is unchanged.
+- Session JSON export is now `formatVersion: 2` and includes summaries and preparations; Markdown export adds summary and preparation sections.
 
 ### Fixed
 

@@ -7,7 +7,7 @@ import { createGateway, loadConfig } from '../server/gateway.mjs'
 import { createSessions } from '../server/sessions/index.mjs'
 import { makeWav } from '../server/sessions/wav.mjs'
 
-async function setup(t, { transcribe } = {}) {
+async function setup(t, { transcribe, summarize } = {}) {
   const dir = mkdtempSync(path.join(tmpdir(), 'beast-session-http-'))
   const config = loadConfig({
     DEMO_MODE: '1',
@@ -17,9 +17,17 @@ async function setup(t, { transcribe } = {}) {
   })
   const sessions = createSessions({
     config,
-    transcribe: transcribe ?? (async ({ sequence }) => `HTTP segment ${sequence}`)
+    transcribe: transcribe ?? (async ({ sequence }) => `HTTP segment ${sequence}`),
+    summarize:
+      summarize ??
+      (async ({ turns }) => ({
+        overview: { text: 'HTTP summary.', citations: [turns[0].id] },
+        decisions: [{ text: 'HTTP decision.', citations: [turns[0].id] }],
+        actionCandidates: [],
+        openQuestions: []
+      }))
   })
-  const server = createGateway({ ...config, sessions: sessions.service })
+  const server = createGateway({ ...config, sessions: sessions.service, summaries: sessions.summary })
   await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve))
   t.after(async () => {
     await sessions.worker.stop()
@@ -55,7 +63,22 @@ async function startSession(base, session) {
 }
 
 test('HTTP session flow imports, transcribes, exports and deletes a stored session', async (t) => {
-  const { base, sessions } = await setup(t)
+  let release
+  const gate = new Promise((resolve) => {
+    release = resolve
+  })
+  t.after(() => release())
+  const { base, sessions } = await setup(t, {
+    summarize: async ({ turns }) => {
+      await gate
+      return {
+        overview: { text: 'HTTP summary.', citations: [turns[0].id] },
+        decisions: [{ text: 'HTTP decision.', citations: [turns[0].id] }],
+        actionCandidates: [],
+        openQuestions: []
+      }
+    }
+  })
   const session = await createSession(base)
   await startSession(base, session)
   const imported = await fetch(`${base}/api/sessions/${session.id}/import`, {
@@ -77,10 +100,62 @@ test('HTTP session flow imports, transcribes, exports and deletes a stored sessi
     detail.jobs.every((job) => job.state === 'done'),
     true
   )
+  const ended = await fetch(`${base}/api/sessions/${session.id}/end`, {
+    method: 'POST',
+    headers: json,
+    body: JSON.stringify({ writerId: 'http', lastSequence: 2 })
+  })
+  assert.equal(ended.status, 200)
+  const endedJson = await ended.json()
+  const requested = await fetch(`${base}/api/sessions/${session.id}/summary`, {
+    method: 'POST',
+    headers: json,
+    body: JSON.stringify({})
+  })
+  assert.equal(requested.status, 202)
+  const pending = (await requested.json()).summary
+  assert.equal(pending.status, 'pending')
+  const repeatedRequest = await fetch(`${base}/api/sessions/${session.id}/summary`, {
+    method: 'POST',
+    headers: json,
+    body: JSON.stringify({})
+  })
+  assert.equal(repeatedRequest.status, 202)
+  assert.equal((await repeatedRequest.json()).summary.id, pending.id)
+  release()
+  const ready = await sessions.summary.run(pending.id)
+  assert.equal(ready.status, 'ready')
+  assert.equal(ready.content.overview.text, 'HTTP summary.')
+  assert.equal(ready.citations.length, 1)
+  const latestResponse = await fetch(`${base}/api/sessions/${session.id}/summary`, { headers: auth })
+  assert.equal(latestResponse.status, 200)
+  assert.equal((await latestResponse.json()).summary.id, ready.id)
+  const preparationResponse = await fetch(`${base}/api/sessions/${session.id}/preparation`, {
+    method: 'POST',
+    headers: json,
+    body: JSON.stringify({ sourceSummaryId: ready.id, focus: 'Follow up' })
+  })
+  assert.equal(preparationResponse.status, 201)
+  const preparation = (await preparationResponse.json()).preparation
+  assert.equal(preparation.status, 'ready')
+  assert.equal(preparation.content.source.summaryId, ready.id)
+  assert.equal(preparation.content.source.sessionId, session.id)
+  assert.equal(preparation.content.citations[0].date, new Date(endedJson.session.endedAt).toISOString())
+  const editedResponse = await fetch(`${base}/api/sessions/${session.id}/summaries/${ready.id}`, {
+    method: 'PATCH',
+    headers: json,
+    body: JSON.stringify({ content: { ...ready.content, overview: { text: 'Edited summary.', citations: ready.content.overview.citations } } })
+  })
+  assert.equal(editedResponse.status, 200)
+  assert.equal((await editedResponse.json()).summary.reviewStatus, 'edited')
+  const stalePreparation = await fetch(`${base}/api/sessions/${session.id}/preparation`, { headers: auth })
+  assert.equal((await stalePreparation.json()).preparation.status, 'stale')
   const jsonExport = await fetch(`${base}/api/sessions/${session.id}/export?format=json`, { headers: auth })
   assert.equal(jsonExport.status, 200)
   const exported = await jsonExport.json()
-  assert.equal(exported.formatVersion, 1)
+  assert.equal(exported.formatVersion, 2)
+  assert.equal(exported.summaries.length, 1)
+  assert.equal(exported.preparations.length, 1)
   assert.equal(exported.completeness.declared, 'complete')
   assert.equal(exported.completeness.transcribedSegments, 3)
   const markdown = await fetch(`${base}/api/sessions/${session.id}/export?format=markdown`, { headers: auth })

@@ -34,6 +34,7 @@
     "gateway": "node --env-file=.env server/index.mjs",
     "gateway:demo": "node server/index.mjs --demo",
     "session:import": "node scripts/session-import.mjs",
+    "session:summary": "node scripts/session-summary.mjs",
     "pack": "node scripts/check-manifest.mjs app.json && npm run build && evenhub pack app.json dist --sdk-ver 0.0.16",
     "qr": "node scripts/device-qr.mjs",
     "simulate": "node node_modules/@evenrealities/evenhub-simulator/bin/index.js http://localhost:5173 --automation-port 9899",

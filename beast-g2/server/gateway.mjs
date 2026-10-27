@@ -59,6 +59,10 @@ export function loadConfig(env = process.env) {
     maxTranscriptChars: integer('MAX_TRANSCRIPT_CHARS', env.MAX_TRANSCRIPT_CHARS ?? 100000, 1000, 1000000),
     maxImportBytes: integer('MAX_IMPORT_BYTES', env.MAX_IMPORT_BYTES ?? 134217728, 1048576, 1073741824),
     segmentMs: integer('SEGMENT_MS', env.SEGMENT_MS ?? 30000, 5000, 120000),
+    summaryMaxChars: integer('SUMMARY_MAX_CHARS', env.SUMMARY_MAX_CHARS ?? 100000, 1000, 200000),
+    summaryChunkChars: integer('SUMMARY_CHUNK_CHARS', env.SUMMARY_CHUNK_CHARS ?? 12000, 1000, 50000),
+    summaryMaxChunks: integer('SUMMARY_MAX_CHUNKS', env.SUMMARY_MAX_CHUNKS ?? 12, 1, 50),
+    summaryMaxItems: integer('SUMMARY_MAX_ITEMS', env.SUMMARY_MAX_ITEMS ?? 100, 1, 500),
     workerPollMs: integer('WORKER_POLL_MS', env.WORKER_POLL_MS ?? 500, 50, 60000),
     workerMaxAttempts: integer('WORKER_MAX_ATTEMPTS', env.WORKER_MAX_ATTEMPTS ?? 3, 1, 10),
     workerBackoffMs: integer('WORKER_BACKOFF_MS', env.WORKER_BACKOFF_MS ?? 1000, 0, 60000),
@@ -238,7 +242,7 @@ export function createGateway(config, fetchImpl = fetch) {
     res.setHeader('Cache-Control', 'no-store')
     res.setHeader('X-Content-Type-Options', 'nosniff')
     const requestAt = Date.now()
-    const stage = req.url?.startsWith('/api/transcribe') ? 'stt' : req.url?.startsWith('/api/chat') ? 'chat' : 'health'
+    const stage = req.url?.startsWith('/api/transcribe') ? 'stt' : req.url?.startsWith('/api/chat') ? 'chat' : req.url?.startsWith('/api/sessions') ? 'sessions' : 'health'
     res.on('finish', () => {
       try {
         config.log?.({ event: 'request.finished', requestId: id, stage, status: res.statusCode, durationMs: Date.now() - requestAt })
@@ -282,12 +286,13 @@ export function createGateway(config, fetchImpl = fetch) {
         models: { chat: config.chatModel, stt: config.sttModel },
         webSearch: !config.demo && Boolean(config.searchKey),
         sessions: Boolean(config.sessions),
+        summaries: Boolean(config.summaries),
         requestId: id
       })
     if (route === '/api/sessions' || route.startsWith('/api/sessions/')) {
       if (!config.sessions) return sendJson(res, 404, { error: 'sessions_disabled', message: 'Stored sessions are not enabled.', requestId: id })
       try {
-        return await routeSessions({ req, res, route, service: config.sessions, requestId: id })
+        return await routeSessions({ req, res, route, service: config.sessions, summary: config.summaries, requestId: id })
       } catch (error) {
         if (res.destroyed) return
         const status = error instanceof ApiError ? error.status : 500

@@ -28,6 +28,45 @@ const jobColumns = `
 const revisionColumns = `
   r.id, r.turn_id AS turnId, r.revision, r.text, r.source, r.created_at AS createdAt`
 
+const summaryColumns = `
+  id, session_id AS sessionId, transcript_revision AS transcriptRevision,
+  generator, prompt_version AS promptVersion, content_json AS contentJson,
+  coverage_json AS coverageJson, status, review_status AS reviewStatus,
+  stale_reason AS staleReason, last_error AS lastError,
+  supersedes_id AS supersedesId, idempotency_key AS idempotencyKey,
+  created_at AS createdAt, updated_at AS updatedAt, ready_at AS readyAt,
+  edited_at AS editedAt`
+
+const citationColumns = `
+  summary_id AS summaryId, turn_id AS turnId, turn_revision AS turnRevision,
+  start_ms AS startMs, end_ms AS endMs, quote, created_at AS createdAt`
+
+const actionCandidateColumns = `
+  id, summary_id AS summaryId, session_id AS sessionId, text, owner, due,
+  due_text AS dueText, conditional, citations_json AS citationsJson,
+  created_at AS createdAt`
+
+const preparationColumns = `
+  id, session_id AS sessionId, source_session_id AS sourceSessionId,
+  source_summary_id AS sourceSummaryId,
+  source_transcript_revision AS sourceTranscriptRevision, focus,
+  content_json AS contentJson, status, stale_reason AS staleReason,
+  created_at AS createdAt, updated_at AS updatedAt`
+
+const summaryPatchColumns = {
+  contentJson: 'content_json',
+  coverageJson: 'coverage_json',
+  status: 'status',
+  reviewStatus: 'review_status',
+  staleReason: 'stale_reason',
+  lastError: 'last_error',
+  readyAt: 'ready_at',
+  editedAt: 'edited_at',
+  updatedAt: 'updated_at',
+  supersedesId: 'supersedes_id',
+  idempotencyKey: 'idempotency_key'
+}
+
 const sessionPatchColumns = {
   status: 'status',
   captureState: 'capture_state',
@@ -242,6 +281,159 @@ export class Repository {
 
   sumTranscriptChars(sessionId) {
     return this.db.prepare('SELECT COALESCE(SUM(length(text)), 0) AS chars FROM transcript_turns WHERE session_id = ?').get(sessionId).chars
+  }
+
+  countPendingTranscriptionJobs(sessionId) {
+    return this.db.prepare(`SELECT COUNT(*) AS count FROM jobs WHERE session_id = ? AND type = 'transcribe' AND state IN ('pending', 'running')`).get(sessionId).count
+  }
+
+  getSummary(id) {
+    return this.db.prepare(`SELECT ${summaryColumns} FROM summaries WHERE id = ?`).get(id) ?? null
+  }
+
+  getSummaryByIdempotencyKey(key) {
+    return this.db.prepare(`SELECT ${summaryColumns} FROM summaries WHERE idempotency_key = ?`).get(key) ?? null
+  }
+
+  insertSummary(summary) {
+    this.db
+      .prepare(
+        `INSERT INTO summaries (
+          id, session_id, transcript_revision, generator, prompt_version,
+          content_json, coverage_json, status, review_status, stale_reason,
+          last_error, supersedes_id, idempotency_key, created_at, updated_at
+        ) VALUES (
+          @id, @sessionId, @transcriptRevision, @generator, @promptVersion,
+          @contentJson, @coverageJson, @status, @reviewStatus, @staleReason,
+          @lastError, @supersedesId, @idempotencyKey, @createdAt, @updatedAt
+        )`
+      )
+      .run(summary)
+    return this.getSummary(summary.id)
+  }
+
+  updateSummary(id, patch) {
+    const entries = Object.entries(patch).filter(([key, value]) => key in summaryPatchColumns && value !== undefined)
+    if (!entries.length) return this.getSummary(id)
+    const assignments = entries.map(([key]) => `${summaryPatchColumns[key]} = @${key}`).join(', ')
+    this.db.prepare(`UPDATE summaries SET ${assignments} WHERE id = @id`).run({ id, ...Object.fromEntries(entries) })
+    return this.getSummary(id)
+  }
+
+  listSummaries(sessionId) {
+    return this.db.prepare(`SELECT ${summaryColumns} FROM summaries WHERE session_id = ? ORDER BY created_at DESC, id DESC`).all(sessionId)
+  }
+
+  getLatestSummary(sessionId) {
+    return this.db.prepare(`SELECT ${summaryColumns} FROM summaries WHERE session_id = ? ORDER BY created_at DESC, id DESC LIMIT 1`).get(sessionId) ?? null
+  }
+
+  markSummariesStaleForSession(sessionId, reason, now) {
+    const changed = this.db
+      .prepare(`UPDATE summaries SET status = 'stale', stale_reason = ?, updated_at = ? WHERE session_id = ? AND status IN ('pending', 'ready')`)
+      .run(reason, now, sessionId).changes
+    this.db
+      .prepare(
+        `UPDATE preparations SET status = 'stale', stale_reason = ?, updated_at = ?
+         WHERE source_summary_id IN (SELECT id FROM summaries WHERE session_id = ?)`
+      )
+      .run(reason, now, sessionId)
+    return changed
+  }
+
+  markSummariesStaleForTurn(sessionId, turnId, reason, now) {
+    const changed = this.db
+      .prepare(
+        `UPDATE summaries SET status = 'stale', stale_reason = ?, updated_at = ?
+         WHERE session_id = ? AND status IN ('pending', 'ready')
+           AND (status = 'pending' OR id IN (SELECT summary_id FROM summary_citations WHERE turn_id = ?))`
+      )
+      .run(reason, now, sessionId, turnId).changes
+    this.db
+      .prepare(
+        `UPDATE preparations SET status = 'stale', stale_reason = ?, updated_at = ?
+         WHERE source_summary_id IN (SELECT summary_id FROM summary_citations WHERE turn_id = ?)`
+      )
+      .run(reason, now, turnId)
+    return changed
+  }
+
+  replaceSummaryCitations(summaryId, citations) {
+    return this.transaction(() => {
+      this.db.prepare('DELETE FROM summary_citations WHERE summary_id = ?').run(summaryId)
+      const insert = this.db.prepare(
+        `INSERT INTO summary_citations (summary_id, turn_id, turn_revision, start_ms, end_ms, quote, created_at)
+         VALUES (@summaryId, @turnId, @turnRevision, @startMs, @endMs, @quote, @createdAt)`
+      )
+      for (const citation of citations) insert.run({ summaryId, ...citation })
+      return this.listSummaryCitations(summaryId)
+    })
+  }
+
+  listSummaryCitations(summaryId) {
+    return this.db.prepare(`SELECT ${citationColumns} FROM summary_citations WHERE summary_id = ? ORDER BY start_ms, turn_id`).all(summaryId)
+  }
+
+  replaceActionCandidates(summaryId, sessionId, candidates, now) {
+    return this.transaction(() => {
+      this.db.prepare('DELETE FROM action_candidates WHERE summary_id = ?').run(summaryId)
+      const insert = this.db.prepare(
+        `INSERT INTO action_candidates (
+          id, summary_id, session_id, text, owner, due, due_text, conditional, citations_json, created_at
+        ) VALUES (
+          @id, @summaryId, @sessionId, @text, @owner, @due, @dueText, @conditional, @citationsJson, @createdAt
+        )`
+      )
+      for (const candidate of candidates) insert.run({ summaryId, sessionId, createdAt: now, ...candidate })
+      return this.listActionCandidates(summaryId)
+    })
+  }
+
+  listActionCandidates(summaryId) {
+    return this.db.prepare(`SELECT ${actionCandidateColumns} FROM action_candidates WHERE summary_id = ? ORDER BY created_at, id`).all(summaryId)
+  }
+
+  insertPreparation(preparation) {
+    this.db
+      .prepare(
+        `INSERT INTO preparations (
+          id, session_id, source_session_id, source_summary_id,
+          source_transcript_revision, focus, content_json, status,
+          stale_reason, created_at, updated_at
+        ) VALUES (
+          @id, @sessionId, @sourceSessionId, @sourceSummaryId,
+          @sourceTranscriptRevision, @focus, @contentJson, @status,
+          @staleReason, @createdAt, @updatedAt
+        )`
+      )
+      .run(preparation)
+    return this.getPreparation(preparation.id)
+  }
+
+  getPreparation(id) {
+    return this.db.prepare(`SELECT ${preparationColumns} FROM preparations WHERE id = ?`).get(id) ?? null
+  }
+
+  getLatestPreparation(sessionId) {
+    return this.db.prepare(`SELECT ${preparationColumns} FROM preparations WHERE session_id = ? ORDER BY created_at DESC, id DESC LIMIT 1`).get(sessionId) ?? null
+  }
+
+  listPreparations(sessionId) {
+    return this.db.prepare(`SELECT ${preparationColumns} FROM preparations WHERE session_id = ? ORDER BY created_at DESC, id DESC`).all(sessionId)
+  }
+
+  markPreparationsStaleForSummary(summaryId, reason, now) {
+    return this.db.prepare(`UPDATE preparations SET status = 'stale', stale_reason = ?, updated_at = ? WHERE source_summary_id = ? AND status = 'ready'`).run(reason, now, summaryId).changes
+  }
+
+  markPreparationsStaleForSession(sessionId, reason, now) {
+    return this.db
+      .prepare(`UPDATE preparations SET status = 'stale', stale_reason = ?, updated_at = ? WHERE (session_id = ? OR source_session_id = ?) AND status = 'ready'`)
+      .run(reason, now, sessionId, sessionId).changes
+  }
+
+  failPendingSummaries(now, message) {
+    return this.db.prepare(`UPDATE summaries SET status = 'failed', last_error = ?, updated_at = ? WHERE status = 'pending'`).run(message, now).changes
   }
 
   insertGap(gap) {

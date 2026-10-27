@@ -33,7 +33,14 @@ Produktový rámec a priority z porovnání s IRIS jsou v [IRIS-COMPARISON.md](I
 - Na vyžádání vytvořit rozhodnutí, úkoly, otevřené otázky a krátký souhrn přes Beast.
 - U úkolů uvádět vlastníka/termín pouze tehdy, když zazněl; chybějící údaje označit. Umožnit dohledat podklad v přepisu a opravit výsledek.
 - Přijetí: exportovatelný souhrn; žádné automatické rozesílání nebo zakládání úkolů v externích službách.
-- Závislost: I1 ukládá úplný přepis relace; souhrn nad ním zbývá. Současná historie 20 odpovědí ani šest zpráv kontextu nejsou úplný záznam schůzky.
+- Stav: I2 implementuje souhrn vázaný na revizi přepisu, citace na konkrétní turny, kandidáty úkolů s explicitním vlastníkem/termínem nebo `null`, ruční opravu a export. Ověření kvality na reálném Beast a klientské UI zůstávají.
+
+### B4b · P1 · Preparation na další rozhovor
+
+- Z vybraného minulého souhrnu sestavit kontext pro novou relaci: rozhodnutí, otevřené otázky, kandidáty úkolů a zdrojové citace.
+- Preparation je neměnný snapshot; výběr jiného souhrnu vytvoří nový snapshot, nepřepíše starý.
+- Přijetí: preparation nese zdrojovou relaci, datum, focus a citace; změna přepisu zdrojového souhrnu označí preparation jako stale.
+- Stav: I2 implementuje API a uložení; napojení do G2 displeje a klientského UI zůstává.
 
 ### B5 · P2 · Prověřit IRIS → Beast / Hermes jako alternativní klient
 

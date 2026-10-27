@@ -1,14 +1,16 @@
 import { transcribeAudio } from '../stt.mjs'
+import { demoSummary, generateSummary } from '../summary-provider.mjs'
 import { openDatabase } from './db.mjs'
 import { Repository } from './repository.mjs'
 import { SessionService } from './service.mjs'
+import { SummaryService } from './summary.mjs'
 import { TranscriptionWorker } from './worker.mjs'
 
 export function demoTranscribe({ sequence }) {
   return `Demo přepis segmentu ${sequence}.`
 }
 
-export function createSessions({ config, transcribe, logger = () => {} }) {
+export function createSessions({ config, transcribe, summarize, logger = () => {} }) {
   const db = openDatabase(config.databasePath)
   const repo = new Repository(db)
   const service = new SessionService({
@@ -38,5 +40,20 @@ export function createSessions({ config, transcribe, logger = () => {} }) {
     timeoutMs: config.workerTimeoutMs,
     logger
   })
-  return { db, repo, service, worker }
+  const summary = new SummaryService({
+    repo,
+    generate: summarize ?? (config.demo ? demoSummary : (args) => generateSummary(config, args)),
+    generator: config.chatModel,
+    limits: {
+      summaryMaxChars: config.summaryMaxChars,
+      summaryChunkChars: config.summaryChunkChars,
+      summaryMaxChunks: config.summaryMaxChunks,
+      summaryMaxItems: config.summaryMaxItems,
+      summaryTimeoutMs: config.timeout
+    },
+    logger
+  })
+  service.attachSummaryService(summary)
+  summary.recoverPending()
+  return { db, repo, service, worker, summary }
 }
