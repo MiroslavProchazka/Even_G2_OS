@@ -86,7 +86,7 @@ Restore check OK
 
 3. For a real restore: stop the gateway, keep the current database and its `-wal`/`-shm` files aside, copy the verified backup to `SESSION_DB_PATH`, set ownership and mode `0600`, then start the gateway.
 4. Check `/api/health`, open one session, and compare counts with the drill. Do not restore over a running gateway or leave old `-wal`/`-shm` files beside the replacement.
-5. Restoring an older backup can resurrect sessions deleted after that backup. Keep an independent deletion list of IDs and expiry timestamps (no text) and re-delete those sessions through the API before exposing the instance.
+5. Restoring an older backup can resurrect sessions deleted after that backup. The deletion journal lives in the same database, so import it from the live database into the restored copy with `node scripts/retention-check.mjs --db <restored> --deleted-from <live> --apply` before starting the gateway. The command removes those sessions and reports ids only.
 6. If the check fails, keep the failing copy and the last known-good backup; do not delete the only good copy while investigating.
 
 ## 8. Smoke test
@@ -103,6 +103,6 @@ Restore check OK
 - No paid resource, provider account, or credential is created. Provider compatibility and cost remain unverified until tested on the target account.
 - No backup scheduler or retention job ships with the repository; the daily run and seven-day rotation are operator tasks.
 - No audio is backed up, and no encryption is performed by the scripts. A database restore does not recover audio that expired or was deleted.
-- No deletion journal is implemented. Re-deleting sessions after a restore is manual.
+- No deletion journal is implemented in the gateway beyond the `deleted_sessions` table and `retention-check --deleted-from`; scheduling the import is an operator task.
 - One workspace per instance only. Separate personal and work use with separate instances, volumes, tokens, and provider profiles.
 - No forensic erasure of storage blocks is promised.

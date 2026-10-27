@@ -141,7 +141,7 @@ test('backup writes a consistent copy, manifest, and passes the restore check', 
   const manifest = JSON.parse(readFileSync(manifestPath, 'utf8'))
   assert.deepEqual(Object.keys(manifest).sort(), ['backupBytes', 'createdAt', 'integrity', 'schemaVersion', 'sha256', 'sourceBytes'])
   assert.equal(manifest.integrity, 'ok')
-  assert.equal(manifest.schemaVersion, 3)
+  assert.equal(manifest.schemaVersion, 4)
   assert.equal(manifest.backupBytes, statSync(backupPath).size)
   assert.equal(manifest.sha256, createHash('sha256').update(readFileSync(backupPath)).digest('hex'))
   assert.ok(manifest.sourceBytes > 0)
