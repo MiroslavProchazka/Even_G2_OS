@@ -75,6 +75,7 @@ All routes require `Authorization: Bearer <gateway-token>`.
 | `GET /api/sessions/:id/preparation` | Latest preparation for the target session, with source date and citations. |
 | `GET /api/sessions/:id/preparations` | Preparation history for the target session. |
 | `GET /api/memory?status=&query=` | Kept memory items whose source session was deleted. Workspace-wide and read-only. |
+| `POST /api/briefing` | Build a deterministic briefing from the latest summaries of 1-3 selected sessions. Body: `sessionIds`. |
 | `GET /api/sessions/:id/memory?status=&query=` | Approved memory items by default; `status=all` is for the review panel. |
 | `POST /api/sessions/:id/memory` | Propose one memory item. Body: `turnId`, `revision`, `kind`, `text`. |
 | `GET /api/sessions/:id/memory/:memoryId` | One approved memory item. |
@@ -223,6 +224,29 @@ session name, source date, source summary ID, focus and citations. Its status ca
 `stale`, but its content is never regenerated in place; selecting another summary creates
 another preparation. Deleting the source session removes its preparations, including those stored
 in another target session; deleting the target session removes its preparations.
+
+## Briefing from stored sessions
+
+`POST /api/briefing` builds one briefing from the latest summaries of one to three
+selected sessions. It is deterministic and read-only: it never calls a model, never writes
+and never reads an external system. The request body is
+`{ "sessionIds": ["ses_…"] }`; duplicates are removed in first-seen order.
+
+`briefing.sources` keeps the selection order and carries the session name and date, the
+latest summary id and creation time, the summary status and review status, both transcript
+revisions, the verification state with a reason and the summary coverage. `briefing.items`
+contains only claims from verified sources: one `overview`, each decision, each action
+candidate as a `commitment` and each open question, with a stable id, the source session
+and date, and exact turn citations. Items are ordered by kind, then selection order, then
+the original summary order.
+
+A source is verified only when its latest summary is `ready`, bound to the current
+transcript revision, has a non-empty overview with citations, and every citation used by a claim
+exists in both the summary citations and the current transcript at the same turn revision.
+Review status does not affect verification, so an `unreviewed` summary still verifies. A session
+without a current summary is `unverified` with a reason such as `no_summary`,
+`summary_stale`, `transcript_changed`, `citation_missing` or `citation_stale`; it contributes no
+items and is never reported as "nothing new". `docs/BRIEFING.md` has the full contract.
 
 ## Retention and limits
 

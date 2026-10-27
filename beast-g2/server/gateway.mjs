@@ -1,3 +1,4 @@
+import { routeBriefing } from './briefing/routes.mjs'
 import { searchWeb } from './web.mjs'
 import http from 'node:http'
 import os from 'node:os'
@@ -244,7 +245,15 @@ export function createGateway(config, fetchImpl = fetch) {
     res.setHeader('Cache-Control', 'no-store')
     res.setHeader('X-Content-Type-Options', 'nosniff')
     const requestAt = Date.now()
-    const stage = req.url?.startsWith('/api/transcribe') ? 'stt' : req.url?.startsWith('/api/chat') ? 'chat' : req.url?.startsWith('/api/sessions') ? 'sessions' : 'health'
+    const stage = req.url?.startsWith('/api/transcribe')
+      ? 'stt'
+      : req.url?.startsWith('/api/chat')
+        ? 'chat'
+        : req.url?.startsWith('/api/sessions')
+          ? 'sessions'
+          : req.url?.startsWith('/api/briefing')
+            ? 'briefing'
+            : 'health'
     let failure
     let logged = false
     const logRequest = (code) => {
@@ -294,24 +303,38 @@ export function createGateway(config, fetchImpl = fetch) {
         webSearch: !config.demo && Boolean(config.searchKey),
         sessions: Boolean(config.sessions),
         summaries: Boolean(config.summaries),
+        briefing: Boolean(config.sessions),
         requestId: id
       })
+    // Session routes and the briefing route share one error mapping: ApiError keeps its status and code, anything else is
+    // an internal error. A failure after headers were sent can only end the response.
+    const routeFailure = (error) => {
+      if (res.destroyed) return
+      const status = error instanceof ApiError ? error.status : 500
+      const code = error instanceof ApiError ? error.code : 'internal_error'
+      failure = code
+      const payload = {
+        error: code,
+        message: error instanceof ApiError ? error.message : 'Request failed.',
+        requestId: id
+      }
+      if (!res.headersSent) return sendJson(res, status, payload)
+      return res.end()
+    }
     if (route === '/api/sessions' || route.startsWith('/api/sessions/') || route === '/api/memory') {
       if (!config.sessions) return reject(404, 'sessions_disabled', 'Stored sessions are not enabled.')
       try {
         return await routeSessions({ req, res, route, service: config.sessions, summary: config.summaries, requestId: id })
       } catch (error) {
-        if (res.destroyed) return
-        const status = error instanceof ApiError ? error.status : 500
-        const code = error instanceof ApiError ? error.code : 'internal_error'
-        failure = code
-        const payload = {
-          error: code,
-          message: error instanceof ApiError ? error.message : 'Request failed.',
-          requestId: id
-        }
-        if (!res.headersSent) return sendJson(res, status, payload)
-        return res.end()
+        return routeFailure(error)
+      }
+    }
+    if (route === '/api/briefing' || route.startsWith('/api/briefing/')) {
+      if (!config.sessions) return reject(404, 'sessions_disabled', 'Stored sessions are not enabled.')
+      try {
+        return await routeBriefing({ req, res, route, service: config.sessions, summary: config.summaries, requestId: id })
+      } catch (error) {
+        return routeFailure(error)
       }
     }
     if (req.method !== 'POST' || !['/api/transcribe', '/api/chat'].includes(route)) return reject(404, 'not_found')
