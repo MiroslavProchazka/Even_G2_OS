@@ -7,9 +7,11 @@ import { AssistantController, type AudioPort } from './controller'
 import { hud, continuousHud, LatestDisplay } from './display'
 import { ContinuousController } from './continuous'
 import { CaptionsController, captionsHud } from './captions'
+import { HintsController } from './hints'
 import { createContinuousDemo, simulateUtterance } from './continuous-demo'
 import { connectEven } from './even'
 import { bindCaptions } from './sessions/panels/captions'
+import { bindHints } from './sessions/panels/hints'
 import { version } from '../package.json'
 import { connectionMessage, historyVisible, isBusy, modeSwitchNote } from './view'
 import { initSessions, type SessionRecorder } from './sessions'
@@ -22,7 +24,7 @@ root.innerHTML = `<header><span>BEAST / G2</span><span class="tag">DEVICE TEST �
 <div class="lens"><div class="lens-status"><span id="status-left"></span><span id="status-right"></span></div><pre id="hud" aria-live="polite"></pre></div><button id="retry-display" class="secondary">Retry display</button><p id="bridge" role="status">Connecting to Even G2…</p>
 <div class="actions"><button id="record">Start question</button><button id="cancel" class="secondary">Cancel</button><button id="previous" aria-label="Previous answer page" class="secondary">↑</button><button id="next" aria-label="Next answer page" class="secondary">↓</button></div>
 <p class="hint">G2: tap to record, tap again to send · double tap to exit · swipe to read</p>
-<section aria-label="Listening mode"><label for="mode">Listening mode</label><select id="mode"><option value="manual">Manual · tap to ask</option><option value="continuous">Continuous G2 · live transcript + hints</option><option value="captions">Captions · live text, nothing stored</option><option value="simulation">Continuous demo · synthetic PCM, no microphone</option></select><label for="speech-threshold">Speech sensitivity</label><select id="speech-threshold"><option value="300">Quiet speech</option><option value="600" selected>Normal</option><option value="1000">Noisy room</option></select><div class="actions"><button id="listen">Resume listening</button><button id="pause" class="secondary">Pause listening</button><button id="inject" class="secondary">Simulate speech segment</button></div><p id="listening" role="status"></p><p class="hint">Live transcript appears while speaking. After 2 seconds of silence, the final transcript goes to Beast. Hints appear automatically for 10 seconds each, then disappear. Keep each utterance under 30 seconds. Tap pauses/resumes; double tap exits.</p></section><form id="ask"><label for="question">Text question · also works without glasses</label><div class="row"><input id="question" maxlength="4000" placeholder="Co umí Beast G2?" required><button>Ask Beast</button></div></form>
+<section aria-label="Listening mode"><label for="mode">Listening mode</label><select id="mode"><option value="manual">Manual · tap to ask</option><option value="continuous">Continuous G2 · live transcript + hints</option><option value="captions">Captions · live text, nothing stored</option><option value="simulation">Continuous demo · synthetic PCM, no microphone</option></select><label for="speech-threshold">Speech sensitivity</label><select id="speech-threshold"><option value="300">Quiet speech</option><option value="600" selected>Normal</option><option value="1000">Noisy room</option></select><div class="actions"><button id="listen">Resume listening</button><button id="pause" class="secondary">Pause listening</button><button id="inject" class="secondary">Simulate speech segment</button></div><p id="listening" role="status"></p><p class="hint">Live transcript appears while speaking. After 2 seconds of silence, the final transcript goes to Beast. Automatic hints are off by default; turn them on in the Hints panel. When on, each hint appears for 10 seconds, then disappears. Keep each utterance under 30 seconds. Tap pauses/resumes; double tap exits.</p></section><form id="ask"><label for="question">Text question · also works without glasses</label><div class="row"><input id="question" maxlength="4000" placeholder="Co umí Beast G2?" required><button>Ask Beast</button></div></form>
 <section><h2>Continuous conversation setup</h2><label for="conversation-mode">Reply style</label><select id="conversation-mode"><option value="direct">Answer every utterance</option><option value="context">Contextual cues · experimental</option></select><label for="prep-notes">Prep notes · people, topic, goal</label><textarea id="prep-notes" maxlength="1500" placeholder="Who am I meeting? What do we need to decide? Relevant names and facts."></textarea><label><input id="web-enabled" type="checkbox"> Enable web commands (custom gateway only)</label><p>Say “vyhledej …” or “search …”. Only that query goes to Brave Search, without prep notes or conversation history. Requires a configured gateway; direct Beast cannot search.</p><button id="apply-conversation" class="secondary">Apply conversation setup</button><p id="conversation-status">Session only. Apply while paused; changing setup resets model context.</p></section>
 <section id="history-section"><h2>Continuous hint history</h2><p>Last 20 completed answers in this session. Survives hint expiry and pause; closing/reloading clears it. Demo history is separate.</p><button id="export-history" class="secondary">Export conversation JSON</button><button id="clear-history" class="secondary">Delete hint history</button><div id="hint-history"></div><textarea id="history-json" hidden readonly aria-label="Conversation export"></textarea></section>
 <div class="detail"><h2>Transcript</h2><p id="transcript">Your spoken question will appear here.</p><h2>Answer</h2><p id="answer">Waiting for your first question.</p><p id="error" role="alert"></p></div></section>
@@ -118,8 +120,9 @@ let pageClosed = false
 let even: Awaited<ReturnType<typeof connectEven>> | undefined
 let mode: 'manual' | 'continuous' | 'simulation' | 'captions' = 'manual'
 let switchingMode = false
-const continuous = new ContinuousController(measuredAudio, api, paint, { requireDisplayAck: true })
-const simulation = createContinuousDemo(paint)
+const hints = new HintsController()
+const continuous = new ContinuousController(measuredAudio, api, paint, { requireDisplayAck: true, hintPolicy: hints.policy })
+const simulation = createContinuousDemo(paint, hints.policy)
 const activeContinuous = () => (mode === 'simulation' ? simulation : continuous)
 const controller = new AssistantController(measuredAudio, api, paint)
 const statusMonitor = new StatusMonitor()
@@ -151,6 +154,7 @@ const captions = new CaptionsController(measuredAudio, (wav, signal) => api.tran
   }
 })
 bindCaptions(captions, startCaptions)
+bindHints(hints)
 const captionsHoldMicrophone = () => captions.state.microphone !== 'off' || captions.state.phase === 'starting'
 /** The phone's Start button selects captions mode first, so the glasses PCM reaches this mode instead of another one. */
 async function startCaptions() {
@@ -195,7 +199,7 @@ function paint() {
     ? captions.statusLine()
     : mode === 'manual'
       ? 'Manual mode · microphone starts on tap.'
-      : `${mode === 'simulation' ? 'SIMULATED MIC' : 'G2 MIC'}: ${listening.microphone.toUpperCase()} · ${listening.phase} · queue ${listening.queued}/2 · dropped ${listening.dropped} · skipped ${listening.ignored} · unread ${listening.unread}/3 · replies dropped ${listening.repliesDropped}. ${listening.notice}`
+      : `${mode === 'simulation' ? 'SIMULATED MIC' : 'G2 MIC'}: ${listening.microphone.toUpperCase()} · ${listening.phase} · queue ${listening.queued}/2 · dropped ${listening.dropped} · skipped ${listening.ignored} · unread ${listening.unread}/3 · replies dropped ${listening.repliesDropped} · hints suppressed ${listening.hintsSuppressed}. ${listening.notice}`
   const diagnosticState = captionsMode
     ? `captions:${captions.state.phase}:${captions.state.microphone}:${captions.state.lines.length}:${Boolean(captions.state.error)}`
     : `${mode}:${state.phase}:${listening.phase}:${listening.microphone}:${listening.queued}:${listening.dropped}:${listening.ignored}:${Boolean(state.error)}`

@@ -13,6 +13,8 @@ export type Details = {
   ageMs?: number
   rms?: number
   peak?: number
+  useful?: number
+  distracting?: number
   phase?: string
   transport?: string
   code?: string
@@ -21,7 +23,7 @@ export type Details = {
   jobId?: string
 }
 export type DiagnosticEvent = { sequence: number; at: string; elapsedMs: number; level: Level; stage: Stage; event: string; traceId?: string; details: Details }
-const numeric = ['status', 'durationMs', 'bytes', 'frames', 'queued', 'dropped', 'ignored', 'chars', 'ageMs', 'rms', 'peak'] as const
+const numeric = ['status', 'durationMs', 'bytes', 'frames', 'queued', 'dropped', 'ignored', 'chars', 'ageMs', 'rms', 'peak', 'useful', 'distracting'] as const
 const identifiers = ['sessionId', 'segmentId', 'jobId'] as const
 // Identifiers are opaque tokens. Anything with whitespace or free text is dropped instead of logged.
 const identifier = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,63}$/
@@ -46,6 +48,7 @@ const events = new Set([
   'answer.shown',
   'answer.expired',
   'answer.dropped',
+  'hint.feedback',
   'segment.failed',
   'session.unresponsive',
   'dispose.stop_failed',
@@ -86,7 +89,9 @@ const categories = new Set([
   'unhandled_rejection',
   'bridge_unavailable',
   'hidden',
-  'visible'
+  'visible',
+  'useful',
+  'distracting'
 ])
 /** Strict metadata allowlist: no prompts, transcripts, answers, PCM, URLs, headers or exception messages. */
 function safeDetails(input: Details) {

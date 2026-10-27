@@ -1,6 +1,7 @@
 import type { WebEvidence } from './api'
 import { conversationPrompt, webQuery, parseCue, ReplyHistory, type ConversationConfig } from './conversation'
 import { diagnostics } from './diagnostics'
+import type { HintBlock, HintKind, HintPolicy } from './hints'
 import type { AssistantPort, AudioPort, State } from './controller'
 import type { Turn } from './api'
 import { Segmenter, type VadOptions } from './vad'
@@ -21,9 +22,25 @@ export type ContinuousState = {
   transcript: string
   streaming: string
   hintPage: number
+  /** Answers completed while the opt-in policy refused to show them. They stay in the local hint history. */
+  hintsSuppressed: number
 }
 export class ContinuousController {
-  state: ContinuousState = { phase: 'paused', microphone: 'off', queued: 0, dropped: 0, ignored: 0, notice: '', error: '', unread: 0, repliesDropped: 0, transcript: '', streaming: '', hintPage: 0 }
+  state: ContinuousState = {
+    phase: 'paused',
+    microphone: 'off',
+    queued: 0,
+    dropped: 0,
+    ignored: 0,
+    notice: '',
+    error: '',
+    unread: 0,
+    repliesDropped: 0,
+    transcript: '',
+    streaming: '',
+    hintPage: 0,
+    hintsSuppressed: 0
+  }
   readonly archive = new ReplyHistory()
   private conversation: ConversationConfig = { mode: 'direct', notes: '' }
   private replies: Reply[] = []
@@ -50,7 +67,17 @@ export class ContinuousController {
     private audio: AudioPort,
     private api: AssistantPort,
     private changed: () => void,
-    private options: { now?: () => number; vad?: Partial<VadOptions>; watchdogMs?: number; replyMs?: number; ackMs?: number; requestMs?: number; previews?: boolean; requireDisplayAck?: boolean } = {}
+    private options: {
+      now?: () => number
+      vad?: Partial<VadOptions>
+      watchdogMs?: number
+      replyMs?: number
+      ackMs?: number
+      requestMs?: number
+      previews?: boolean
+      requireDisplayAck?: boolean
+      hintPolicy?: HintPolicy
+    } = {}
   ) {
     this.vad = new Segmenter(
       (wav) => {
@@ -116,7 +143,24 @@ export class ContinuousController {
       }
     }
   }
-  private showReply(reply: Reply) {
+  private suppressHint() {
+    const reason = this.hintBlocked()
+    const notice =
+      reason === 'disabled'
+        ? 'Hints are off. Transcript kept; no automatic hint.'
+        : reason === 'paused'
+          ? 'Hints are paused. Transcript kept; no automatic hint.'
+          : reason === 'visible'
+            ? 'Another hint is visible. This answer is only in the hint history.'
+            : 'Hint spacing not reached. This answer is only in the hint history.'
+    this.set({ hintsSuppressed: this.state.hintsSuppressed + 1, streaming: '', notice })
+  }
+  private hintBlocked(): HintBlock | undefined {
+    return this.options.hintPolicy?.blockedBy({ visible: Boolean(this.state.reply) })
+  }
+  private showReply(reply: Reply, kind: HintKind = 'unsolicited') {
+    // An explicit Ask is marked separately and never consumes the automatic spacing.
+    this.options.hintPolicy?.noteShown(kind === 'ask' ? 'show-ask' : 'show-unsolicited')
     this.hintSpace?.()
     this.hintSpace = undefined
     clearInterval(this.hintTimer)
@@ -264,6 +308,12 @@ export class ContinuousController {
             this.set({ ignored: this.state.ignored + 1, notice: 'No speech recognized.' })
             continue
           }
+          // An automatic hint that the opt-in policy refuses must not spend a model call or replace the transcript.
+          const decision = this.options.hintPolicy?.decide('unsolicited', { visible: Boolean(this.state.reply) }) ?? 'show-unsolicited'
+          if (decision === 'suppress') {
+            this.suppressHint()
+            continue
+          }
           this.set({ phase: 'answering', notice: 'Answering · microphone stays on; at most two queued segments.' })
           const config = { ...this.conversation }
           let evidence: WebEvidence | undefined
@@ -312,6 +362,11 @@ export class ContinuousController {
           this.history.push({ role: 'user', content: text }, { role: 'assistant', content: answer.slice(0, 4000) })
           this.history = this.history.slice(-6)
           this.archive.add({ transcript: text, answer, hint, evidence, mode: config.mode })
+          // An explicit Ask may have taken the lens while this answer was generating, so the automatic hint yields.
+          if (this.options.hintPolicy?.decide('unsolicited', { visible: Boolean(this.state.reply) }) === 'suppress') {
+            this.suppressHint()
+            continue
+          }
           // Each completed hint gets ten seconds, then the next advances automatically.
           diagnostics.record('continuous', 'answer.ready', { chars: answer.length })
           const reply = { id: ++this.nextReplyId, transcript: text, answer, hint, evidence }
@@ -370,6 +425,49 @@ export class ContinuousController {
       if (id === this.generation) this.set({ phase: 'error', error: `Microphone stop failed; retry pause: ${String(error)}` })
     } finally {
       this.stopping--
+    }
+  }
+  /**
+   * An explicit Ask. It ignores the opt-in toggle, the hint pause, a visible hint and the automatic spacing,
+   * and it never records `lastShownAt`. A failure shows no hint and leaves the live transcript untouched.
+   */
+  async askHint(question: string): Promise<boolean> {
+    const text = question.trim()
+    if (!this.enabled || this.starting || !text) return false
+    const id = this.generation
+    const request = new AbortController()
+    let answer = ''
+    this.set({ streaming: '', error: '' })
+    try {
+      await this.bounded(
+        (signal) =>
+          this.api.chat(conversationPrompt(text, { ...this.conversation, mode: 'direct' }), [...this.history], signal, (delta) => {
+            if (id !== this.generation || request.signal.aborted) return
+            if (answer.length + delta.length > 12000) {
+              request.abort()
+              throw new Error('Answer exceeds limit.')
+            }
+            answer += delta
+            this.set({ streaming: answer })
+          }),
+        request,
+        this.options.requestMs ?? 30000
+      )
+      if (id !== this.generation || !this.enabled) return false
+      if (!answer.trim()) throw new Error('Empty answer.')
+      if ((this.options.hintPolicy?.decide('ask', { visible: Boolean(this.state.reply) }) ?? 'show-ask') !== 'show-ask') return false
+      this.history.push({ role: 'user', content: text }, { role: 'assistant', content: answer.slice(0, 4000) })
+      this.history = this.history.slice(-6)
+      this.archive.add({ transcript: text, answer, mode: 'direct' })
+      diagnostics.record('continuous', 'answer.ready', { chars: answer.length })
+      this.showReply({ id: ++this.nextReplyId, transcript: text, answer }, 'ask')
+      return true
+    } catch (error) {
+      if (id === this.generation) {
+        diagnostics.record('continuous', 'segment.failed', { code: 'operation_failed' }, 'error')
+        this.set({ streaming: '', error: String(error), notice: 'Explicit hint failed; listening continues. Transcript kept.' })
+      }
+      return false
     }
   }
   showLatest() {

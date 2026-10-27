@@ -1,5 +1,6 @@
 import { ContinuousController } from './continuous'
 import type { AssistantPort } from './controller'
+import type { HintPolicy } from './hints'
 /** Explicit synthetic audio, never phone/computer capture. Also used by deterministic smoke tests. */
 export function pcmFrame(speech: boolean) {
   const bytes = new Uint8Array(640),
@@ -12,7 +13,7 @@ export function simulateUtterance(controller: ContinuousController) {
   for (let i = 0; i < 30; i++) controller.onPcm(pcmFrame(true))
   for (let i = 0; i < 105; i++) controller.onPcm(pcmFrame(false))
 }
-export function createContinuousDemo(changed: () => void) {
+export function createContinuousDemo(changed: () => void, hintPolicy?: HintPolicy) {
   let index = 0
   const transcripts = ['Dneska je pěkné počasí.', 'Jak funguje Beast G2?', 'Jak funguje Beast G2?', 'Kdo ví, že jo?', 'Co znamená průběžný poslech?']
   const api: AssistantPort = {
@@ -50,7 +51,8 @@ export function createContinuousDemo(changed: () => void) {
       }
     },
     api,
-    changed
+    changed,
+    { hintPolicy }
   )
   return controller
 }

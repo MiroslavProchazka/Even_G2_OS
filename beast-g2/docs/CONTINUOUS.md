@@ -14,6 +14,20 @@ Validation: `tests/captions.test.ts` covers start, stop clearing the text, the b
 
 ---
 
+# Hints
+
+Automatic contextual hints are opt-in and off by default. The Hints panel in the Stored sessions section turns them on; nothing on the lens changes until that explicit action. The policy is `HintPolicy` in `src/hints.ts`, and continuous mode only asks it for a decision.
+
+The hard minimum spacing between automatic hints is 30 seconds, measured from the moment the previous hint became visible. The panel can raise the value to 60 or 120 seconds but cannot lower it below 30 seconds; `setSpacing` refuses anything smaller. An automatic hint is also refused while hints are paused, while another hint occupies the lens, or while the toggle is off. A refused hint never pauses transcription and never clears the live transcript. If a model answer was already generated before the refusal, it stays in the local hint history with a counter and a visible notice.
+
+An explicit Ask always wins. It ignores the toggle, the pause, a visible hint and the spacing clock, replaces the visible hint instead of queueing behind it, and never consumes or resets the automatic spacing. A failed model call shows no hint and leaves the live transcript unchanged; the error is visible in the status line and listening continues.
+
+Feedback is local and content-free. The Useful and Distracting buttons increment two counters in memory and emit the `hint.feedback` diagnostic event with the rating code and the two counts. No hint text, transcript, prompt, audio or URL is recorded or sent. The counters disappear on reload.
+
+Pausing hints pauses only automatic hints. Transcription, VAD and the live transcript continue, and an explicit Ask still works. Pausing listening is a different action: it stops capture and clears the live transcript.
+
+---
+
 # Changes in 0.3.2
 
 On real G2, the ten-second hint timer starts only after LatestDisplay receives a successful SDK write for the matching reply ID. Repeated/stale acknowledgements cannot reset or start another hint's timer. An unresolved write times out without starting another native write or acknowledging late resolution. Transient rejections retry at most twice; Retry display requeues the current frame, while a timed-out native session requires reopening. SDK success is an acknowledgement, not physical proof that the wearer read the text.
