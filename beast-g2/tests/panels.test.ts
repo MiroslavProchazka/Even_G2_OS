@@ -186,7 +186,7 @@ const session = (overrides: Partial<Session> = {}): Session =>
 
 const detail = (overrides: Partial<SessionDetail> = {}): SessionDetail => ({ session: session(), segments: [], turns: [], gaps: [], jobs: [], summaries: [], preparation: null, ...overrides })
 
-const host = (): SessionPanelHost => ({ gate: (target) => target, error: () => {}, create: async () => false })
+const host = (): SessionPanelHost => ({ gate: (target) => target, error: () => {}, create: async () => false, select: async () => {} })
 
 class FakeClient {
   calls: Array<{ method: string; args: unknown[] }> = []
@@ -251,6 +251,33 @@ test('initSessions mounts the registered panels next to the new session form', a
   assert.match(section.textContent, /Panel mounted by initSessions/)
   assert.match(section.textContent, /New session/)
   assert.ok(findForm(section, 'sessions-create'))
+  handle.dispose()
+})
+
+test('a panel can select a session through the host', async (t) => {
+  const dom = installDom()
+  t.after(dom.restore)
+  registerSessionPanel({
+    id: 'select-panel',
+    mount(section, deps) {
+      const open = dom.document.createElement('button') as unknown as HTMLElement
+      open.textContent = 'Open hit'
+      open.addEventListener('click', () => {
+        void deps.host?.select('ses_1')
+      })
+      section.append(open)
+    }
+  })
+  const client = new FakeClient()
+  client.sessions = [session({ id: 'ses_1', name: 'Hit session' })]
+  client.details.set('ses_1', detail({ session: session({ id: 'ses_1', name: 'Hit session' }) }))
+  const handle = initSessions({ client: client as unknown as SessionClient, writerId: 'phone' })
+  await settle()
+  const section = dom.document.main.children[0]!
+  findButton(section, 'Open hit')!.click()
+  await settle()
+  assert.ok(client.calls.some((call) => call.method === 'detail' && call.args[0] === 'ses_1'))
+  assert.match(section.textContent, /Hit session/)
   handle.dispose()
 })
 

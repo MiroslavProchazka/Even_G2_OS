@@ -47,6 +47,8 @@ export type SessionPanelHost = {
   error(text: string): void
   /** Creates a session (or starts recording) and selects it. Resolves true when the session exists. */
   create(input: NewSessionInput): Promise<boolean>
+  /** Selects an existing session and loads its detail, so a panel can open a search or memory hit. */
+  select(id: string): Promise<void>
 }
 
 export type SessionsDeps = {
@@ -145,7 +147,8 @@ export function initSessions(deps: SessionsDeps): SessionsHandle {
   const panelHost: SessionPanelHost = {
     gate: (target, enabled) => gate(target, enabled, persistentGated),
     error: (text) => showErrorText(text),
-    create: (input) => createSession(input)
+    create: (input) => createSession(input),
+    select: (id) => selectSession(id)
   }
   mountSessionPanels(panelSection, { ...deps, host: panelHost })
 

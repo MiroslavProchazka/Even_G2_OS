@@ -85,6 +85,8 @@ U každé fáze je uvedený cíl, závislosti, vlastněné soubory, kritéria p�
 
 **Odhad:** M.
 
+**Stav:** hotovo 27. 10. 2026, commit `171f7e3`. 11 fixtur, replay režim, 215 testů.
+
 ### I4.0 Švy pro paralelní práci
 
 **Cíl:** Rozdělit horká místa tak, aby každá další fáze mohla přidat routu, migraci, kontrakt a UI panel bez editace stejného souboru jako jiná fáze.
@@ -105,6 +107,8 @@ U každé fáze je uvedený cíl, závislosti, vlastněné soubory, kritéria p�
 **Mimo rozsah:** nové funkce, změny API odpovědí, přejmenování existujících rout.
 
 **Odhad:** L. Když je refaktor rizikový, rozdělit na I4.0a server a I4.0b klient, obě bez změny chování.
+
+**Stav:** hotovo 27. 10. 2026. Server `86526dd` (registr rout a migrací), klient `c5b3eef` (rozdělený kontrakt a registr panelů), v `main` 238 testů.
 
 ### I4.1 Fulltext nad přepisy
 
@@ -274,6 +278,8 @@ U každé fáze je uvedený cíl, závislosti, vlastněné soubory, kritéria p�
 
 **Odhad:** M.
 
+**Stav:** hotovo 27. 10. 2026, commit `ac1893b`. Záloha, restore drill a checklist; testy 204.
+
 ### I7.2 Observabilita a CI brány
 
 **Cíl:** Doplnit diagnostiku, metriky a CI kontroly tak, aby chyba byla dohledatelná bez obsahu relace.
@@ -364,4 +370,5 @@ Pravidlo pro `src/main.ts`: v jedné vlně ho mění nejvýše jedna fáze. Kdy�
 
 ## 9. Historie
 
+- **1.1, 27. 10. 2026:** hotové I4.0a, I4.0b, I3.2 a I7.1; doplněn stav u fází a rozhodnutí o dalším postupu.
 - **1.0, 27. 10. 2026:** první verze. Vychází ze stavu po I3, rozděluje I3 dokončení a etapy I4 až I7 na fáze, určuje vlny, vlastnictví souborů a rozhodovací body.
