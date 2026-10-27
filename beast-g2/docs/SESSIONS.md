@@ -53,6 +53,7 @@ All routes require `Authorization: Bearer <gateway-token>`.
 | Method and path | Purpose |
 | --- | --- |
 | `GET /api/sessions?limit=50` | List sessions, newest first. |
+| `GET /api/sessions/search?q=&limit=50` | Full-text search over the final transcript. |
 | `POST /api/sessions` | Create a session. Body: `name`, optional `language` (`cs`, `en`, `auto`), `source` (`import`, `g2`), `goal`, `prep`, `timezone`, `retentionDays`. |
 | `GET /api/sessions/:id` | Session detail with segments, turns, gaps, jobs, summaries and the latest preparation. |
 | `DELETE /api/sessions/:id` | Delete the session, its indexes, revisions and stored audio. Idempotent. |
@@ -81,6 +82,29 @@ segment_conflict`. Sequence numbers are unique per session. `end` with
 
 `PATCH` on a turn from another session returns `404`. A correction increments the
 session transcript revision and stores the previous and new text in `transcript_revisions`.
+
+## Search
+
+`GET /api/sessions/search?q=&limit=50` searches the final transcript, not the audio and
+not the summaries. The FTS5 table `transcript_search` is kept in sync by triggers on
+`transcript_turns`, so a correction reindexes the turn and a deleted session or turn
+disappears from the results. The index uses `unicode61 remove_diacritics 2`, so `zrusit`
+and `zrušit` find the same passage.
+
+The query is split on everything that is not a letter or a digit. At most eight tokens of
+forty characters are kept, each token is quoted and joined with `AND`, so FTS5 operators
+(`OR`, `NOT`, `NEAR`, `*`, quotes) in user input are read as text instead of changing the
+query. A query without letters or digits returns `400 query_required`. `limit` defaults to 50
+and is clamped to 1..50.
+
+Each hit carries `sessionId`, `sessionName`, `turnId`, `revision`, `startMs`, `endMs`, a
+short `snippet` with `[` `]` around the matched tokens, and the session timestamps the UI
+needs for a date. Hits are ordered by `bm25` ascending (best first) and then by the position
+in the session. Sessions with `status = 'deleted'` are excluded.
+
+This is lexical search only: no embeddings, no semantic ranking, no search in summaries and no
+answer generation. The Conversations panel debounces typing by 250 ms, aborts the previous
+request and opens the selected session when a hit is clicked.
 
 ## Summaries and preparation
 

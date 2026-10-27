@@ -1,5 +1,6 @@
 import type { SessionsDeps } from '../../sessions'
 import { newSessionPanel } from './new-session'
+import { searchPanel } from './search'
 
 /**
  * A sessions panel owns one block of the sessions section. It receives the element it may fill and the deps that
@@ -25,3 +26,4 @@ export function mountSessionPanels(section: HTMLElement, deps: SessionsDeps): vo
 }
 
 registerSessionPanel(newSessionPanel)
+registerSessionPanel(searchPanel)

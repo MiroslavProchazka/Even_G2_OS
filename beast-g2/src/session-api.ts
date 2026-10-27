@@ -31,3 +31,4 @@ export type {
   SummaryCoverage,
   SummaryItem
 } from './session-api/summary'
+export type { SearchResponse, SearchResult } from './session-api/search'
