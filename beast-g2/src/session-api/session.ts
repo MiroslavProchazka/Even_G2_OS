@@ -1,5 +1,5 @@
 import type { RequestOptions } from './client'
-import { SummaryEndpoints } from './summary'
+import { SearchEndpoints } from './search'
 import type { SessionPreparation, SessionSummary } from './summary'
 
 export { SessionApiError } from './client'
@@ -92,9 +92,10 @@ export type SegmentUpload = { segmentId: string; sequence: number; startMs: numb
 
 /**
  * The public session client. The class chain keeps every domain in its own module: `client.ts` owns the HTTP plumbing,
- * `summary.ts` adds summary and preparation routes, and this class adds the session routes.
+ * `summary.ts` adds summary and preparation routes, `search.ts` adds full-text search, and this class adds the session
+ * routes.
  */
-export class SessionClient extends SummaryEndpoints {
+export class SessionClient extends SearchEndpoints {
   create(input: CreateSessionInput, options?: RequestOptions) {
     return this.json<{ session: Session }>('/api/sessions', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(input) }, options)
   }
