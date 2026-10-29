@@ -7,3 +7,5 @@ dist/
 .dev/
 .DS_Store
 app.device.json
+
+notion-credentials.enc*

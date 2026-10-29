@@ -6,6 +6,8 @@ All notable changes to this repository are documented here. The format follows [
 
 ### Added
 
+- Opt-in read-only Notion work context: OAuth/PKCE, encrypted gateway credentials, workspace checks, bounded MCP retrieval, Beast answers with checked source excerpts, separate phone work history and explicit manual G2 Ask integration. Live provider and hardware verification remain open.
+
 - Session questions (`POST /api/sessions/:id/qa`) with strict turn citations, a bounded context and an explicit `insufficient_evidence` result; phone panel in Conversations.
 - Session memory items (`GET/POST/PATCH /api/sessions/:id/memory`) with a proposal from one exact turn revision, user approval or rejection, replacement with history, source-deletion rules and a workspace-wide `GET /api/memory` list of kept items; the phone panel adds a read-only kept-memory list after a source session is deleted.
 - Opt-in contextual hints with a hard 30-second minimum spacing, pause/resume and local useful/distracting counters that store no content.
