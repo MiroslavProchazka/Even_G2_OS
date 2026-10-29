@@ -7,6 +7,8 @@ export interface AudioPort {
   stop(): Promise<void>
 }
 export interface AssistantPort {
+  /** External work contexts retain their own evidence and follow-up history. */
+  managesHistory?(): boolean
   transcribe(wav: Uint8Array<ArrayBuffer>, signal: AbortSignal): Promise<string>
   chat(text: string, history: Turn[], signal: AbortSignal, delta: (text: string) => void, options?: ChatOptions): Promise<void>
 }
@@ -113,7 +115,8 @@ export class AssistantController {
   }
   private async answer(text: string, id: number, signal: AbortSignal) {
     this.set({ phase: 'answering', transcript: text, answer: '' })
-    await this.api.chat(text, this.history, signal, (delta) => {
+    const managed = this.api.managesHistory?.() === true
+    await this.api.chat(text, managed ? [] : this.history, signal, (delta) => {
       if (id !== this.sequence) return
       if (this.state.answer.length + delta.length > 12000) {
         this.request?.abort()
@@ -123,8 +126,10 @@ export class AssistantController {
     })
     if (id !== this.sequence) return
     if (!this.state.answer.trim()) throw new Error('The model returned an empty answer.')
-    this.history.push({ role: 'user', content: text }, { role: 'assistant', content: this.state.answer.slice(0, 4000) })
-    this.history = this.history.slice(-6)
+    if (!managed) {
+      this.history.push({ role: 'user', content: text }, { role: 'assistant', content: this.state.answer.slice(0, 4000) })
+      this.history = this.history.slice(-6)
+    }
     this.set({ phase: 'done' })
   }
   async cancel(interrupted = false) {

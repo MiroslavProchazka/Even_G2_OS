@@ -300,6 +300,14 @@ Read-only API/MCP přijde až po ověřeném omezení přístupu, mazání a odp
 
 Pozdější zápis do externího systému má podobu konkrétního návrhu s cílem, obsahem a zdrojem. Potvrzení uživatele platí pro tento návrh; změna obsahu vyžaduje nové potvrzení. Provedení musí být idempotentní a mít dohledatelný výsledek; možnost vrácení se uvádí podle skutečných možností cílového systému.
 
+### 11.1 Explicitní dotazy nad Notionem — implementační větev
+
+Na základě zadání z 29. 10. 2026 přidává větev `feat/notion-work-context` opt-in read-only konektor Notion MCP a explicitní pracovní Ask přes existující gateway. Nejde o MCP server z I6.2. Notion zůstává autoritativním zdrojem, nový tok neimportuje workspace do SQLite a nepřidává automatické externí zápisy. Vyhledávání je omezené na vybrané výsledky v jednom nakonfigurovaném pracovním workspace.
+
+Krátký hint v G2 má podrobnosti a citované úryvky v telefonu. Pracovní konverzace má oddělený kontext; ruční pracovní dotazy nezapisují do historie běžného chatu. Existenci a přesnost citovaných úryvků kontroluje server; věcná opora interpretace zůstává předmětem evaluace. Výpadek zdroje není důkaz absence úkolů. Konektor nezapojuje obecnou agentní smyčku do zachytávání audia ani do automatických hintů.
+
+Stav: implementováno na samostatné větvi, neintegrováno do `main`. Syntetické testy nejsou důkazem funkčnosti skutečného Notion workspace, Beast inference, mobilní VPN ani G2. Konfigurace, limity, API a pilotní podmínky jsou v [WORK-CONTEXT.md](beast-g2/docs/WORK-CONTEXT.md).
+
 ## 12. Ověření a rozhodnutí o pokračování
 
 ### Technická sada před pilotem

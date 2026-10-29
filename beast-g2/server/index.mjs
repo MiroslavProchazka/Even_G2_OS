@@ -1,4 +1,5 @@
 import { createGateway, loadConfig } from './gateway.mjs'
+import { createWorkContext } from './work-context/index.mjs'
 import { createSessions } from './sessions/index.mjs'
 const demo = process.argv.includes('--demo')
 const config = loadConfig(demo ? { ...process.env, DEMO_MODE: '1' } : process.env)
@@ -8,8 +9,9 @@ if (!Number.isInteger(port) || port < 1 || port > 65535) throw new Error('Invali
 if (demo && !['127.0.0.1', 'localhost', '::1'].includes(host)) throw new Error('Demo binds to loopback only. Configure a live gateway for phone access.')
 if (!config.demo && !['127.0.0.1', 'localhost', '::1'].includes(host)) console.warn(`Gateway is bound to ${host} over plain HTTP. Put it behind a TLS tunnel before sending real tokens.`)
 const log = (entry) => console.log(JSON.stringify({ at: new Date().toISOString(), ...entry }))
+const work = createWorkContext(config)
 const sessions = createSessions({ config, logger: log })
-const server = createGateway({ ...config, sessions: sessions.service, summaries: sessions.summary, log })
+const server = createGateway({ ...config, work, sessions: sessions.service, summaries: sessions.summary, log })
 server.on('close', () => sessions.db.close())
 server.listen(port, host, () => {
   sessions.worker.start()

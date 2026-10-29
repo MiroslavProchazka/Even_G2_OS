@@ -220,6 +220,16 @@ U každé fáze je uvedený cíl, závislosti, vlastněné soubory, kritéria p�
 
 **Odhad:** L.
 
+### I5.N Notion MCP a explicitní pracovní Ask
+
+Rozšíření I5.2 podle zadání z 29. 10. 2026. Implementační větev `feat/notion-work-context`; není sloučena do `main`. Nevyžaduje MCP server I6.2 ani dosud neintegrované briefingové větve I5.1.
+
+**Rozsah:** serverový read-only MCP klient, OAuth/PKCE a šifrované tokeny, kontrola workspace, omezené search/fetch, syntéza Beastem, citované úryvky, telefonní panel a explicitní Manual Ask z G2. Vlastní domény `server/integrations/notion/`, `server/work-context/`, `src/work-*.ts`; malé integrační změny v gateway, bootstrapu, main a historii controlleru.
+
+**Ověření:** syntetické testy protokolu, OAuth a token rotation, HTTP kontraktu, zdrojů, rušení a oddělení konverzačních kontextů; standardní test/build/lint/format/coverage brány. Živý Notion, Beast, mobilní VPN, hardwarová kvalita a přínos v práci zůstávají pilotními branami. Podrobnosti v [WORK-CONTEXT.md](beast-g2/docs/WORK-CONTEXT.md).
+
+**Další práce:** přesné adaptéry skutečných výsledků a databázových úkolů, identifikace projektů/osob, ověřování stavů z autoritativní databáze, měření latence; teprve následně briefingy a potvrzované zápisy. Žádná migrace existujících schválených paměťových položek.
+
 ### I5.3 Ověřování aktuálnosti
 
 **Cíl:** U každého externího tvrzení ukázat, kdy bylo naposledy ověřené a jestli je zdroj dostupný.
