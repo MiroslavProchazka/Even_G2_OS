@@ -277,6 +277,8 @@ Rozšíření I5.2 podle zadání z 29. 10. 2026. Implementační větev `feat/n
 
 **Odhad:** M.
 
+**Stav:** hotovo 31. 10. 2026, commit `bd09a06`, v `main` merge `5452aa3`. Stdio MCP server se oficiálním `@modelcontextprotocol/sdk`: čtyři read-only nástroje (`list_sessions`, `get_session`, `get_session_summary`, `list_memory`) volají jen `GET /api/public/`, takže token, scopes a izolace workspace zůstávají v gateway. Chyba API je tool error se stabilním kódem, neznámý nástroj je protokolová chyba, konfigurace odmítne špatný token i URL bez vyzrazení tokenu. Ověřeno 8 testy s SDK klientem přes stdio proti reálné gateway, celkem 428 testů v `main`, typecheck, lint, Prettier a build zelené. Claude Desktop, hostovaný MCP, VPN a hardware neověřeny.
+
 ### I6.3 Schvalované akce
 
 **Cíl:** Umožnit jeden konkrétní zápis do externího systému až po výslovném schválení návrhu.
@@ -401,6 +403,7 @@ Pravidlo pro `src/main.ts`: v jedné vlně ho mění nejvýše jedna fáze. Kdy�
 
 ## 9. Historie
 
+- **1.7, 31. 10. 2026:** hotová I6.2, stdio MCP server nad veřejným API se čtyřmi read-only nástroji; merge do `main` (`5452aa3`), 428 testů. Ověřeno oficiálním SDK klientem proti reálné gateway; Claude Desktop, hostovaný MCP, VPN a hardware zůstávají otevřené.
 - **1.6, 31. 10. 2026:** hotová I6.1, read-only API `/api/public/` s bearer tokeny, scopes a izolací workspace; fast-forward do `main` (`f4c7ed4`), 420 testů. Ověřeno proti běžícímu gateway procesu 16/16 scénářů; MCP server I6.2 a schvalované akce I6.3 zůstávají otevřené.
 - **1.5, 31. 10. 2026:** I5.1 a I5.N sloučené do `main` a ověřené v demo režimu. Briefing nad dvěma uloženými relacemi vrátil dva `verified` zdroje a osm citovaných položek; relace bez souhrnu vrátila `unverified` s `no_summary`. Simulátor načetl balíček a brýle bez chyby, panel v jeho webview zůstal neověřený. 405 testů.
 - **1.4, 27. 10. 2026:** hotová I4.3; paměťové položky z konkrétního turnu a revize, schválení/odmítnutí/nahrazení, `keepMemory` s `evidenceState: "lost"`, workspace seznam kept memory přes `GET /api/memory`; 347 testů v `main`, commit `9913ef0`.

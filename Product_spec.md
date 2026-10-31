@@ -227,6 +227,7 @@ SQLite je zde návrhová volba pro jednouzlovou aplikaci. Oficiální dokumentac
 | G2 capture do uložené relace | `src/capture.ts` | Hotovo, 30s segmenty, retry, mezery, partial flush |
 | Napojení v aplikaci | `src/main.ts` | Hotovo, ref-counted mikrofon, stavový řádek |
 | Veřejné read-only API | `server/api/public.mjs`, `server/api/scopes.mjs` | Hotovo, bearer tokeny, scopes, izolace workspace, `docs/API.md` |
+| MCP server | `server/mcp/server.mjs`, `server/mcp/config.mjs` | Hotovo, stdio, čtyři read-only nástroje, `docs/MCP.md` |
 
 `MemoryService` a `ConnectorService` z hranic modulů zatím neexistují; jejich fáze jsou v [ROADMAP.md](ROADMAP.md).
 
@@ -311,7 +312,11 @@ Stav: sloučeno do `main` (`6956230`, squashed PR `e25743e`) a v `main` od `e9f3
 
 ### 11.2 Read-only HTTP API — implementační větev
 
-Read-only API pod `/api/public/` je hotové a v `main` (`f4c7ed4`). Klient se prokazuje bearer tokenem, který nese scopes `sessions:read`, `summaries:read` a `memory:read` a právě jeden workspace; token ani jeho jméno se nelogují. Cizí workspace vrací 404, chybějící scope 403, jiná metoda než GET 405 s `Allow: GET` a vypnuté API 404 `public_api_disabled`. API nic nezapisuje a nesestavuje prompt. Kontrakt je v [API.md](beast-g2/docs/API.md). Ověřeno proti běžícímu gateway procesu 16 scénáři; MCP server I6.2 a schvalované akce I6.3 zůstávají nezahájené.
+Read-only API pod `/api/public/` je hotové a v `main` (`f4c7ed4`). Klient se prokazuje bearer tokenem, který nese scopes `sessions:read`, `summaries:read` a `memory:read` a právě jeden workspace; token ani jeho jméno se nelogují. Cizí workspace vrací 404, chybějící scope 403, jiná metoda než GET 405 s `Allow: GET` a vypnuté API 404 `public_api_disabled`. API nic nezapisuje a nesestavuje prompt. Kontrakt je v [API.md](beast-g2/docs/API.md). Ověřeno proti běžícímu gateway procesu 16 scénáři; MCP server I6.2 je hotový v 11.3, schvalované akce I6.3 zůstávají nezahájené.
+
+### 11.3 MCP server — implementační větev
+
+Stdio MCP server je hotový a v `main` (`5452aa3`). Klient ho spouští jako podproces a předává mu `PUBLIC_API_TOKEN` a `PUBLIC_API_URL`; server sám nečte SQLite ani nesestavuje prompt. Čtyři nástroje (`list_sessions`, `get_session`, `get_session_summary`, `list_memory`) volají pouze `GET /api/public/`, takže scopes a izolace workspace zůstávají v gateway. Výsledky nesou stejné citace jako API. Chyba API je tool error se stabilním kódem, neznámý nástroj je protokolová chyba. Konfigurace odmítne špatný token i URL bez vyzrazení tokenu. Kontrakt je v [MCP.md](beast-g2/docs/MCP.md). Ověřeno 8 testy s oficiálním SDK klientem přes stdio proti reálné gateway; Claude Desktop, hostovaný MCP, VPN a hardware neověřeny.
 
 ## 12. Ověření a rozhodnutí o pokračování
 
@@ -355,7 +360,7 @@ Pokud jsou souhrny přínosné, ale hinty ruší, pokračovat s archivem a expli
 | I3 — integrace G2 | Oddělená pipeline, dlouhá řeč, spolehlivé Pause/End a stav uložení. | Hardwarová sada a jasně uvedený podporovaný provoz. I1–I3 tvoří MVP. | Hotovo v kódu a simulátoru, 198 testů. Hardwarová sada otevřená. |
 | I4 — paměť a živá pomoc | Vyhledávání, dotazy nad relací, schvalované poznatky; oddělený experiment Captions a hintů. | Užitečnost retrievalu, opravy a smazání odvozených dat; přijatelná míra vyrušování. | Hotovo v kódu a prohlížeči. Fáze I4.0–I4.5 v [ROADMAP.md](ROADMAP.md). |
 | I5 — pracovní kontext | Jeden omezený read-only briefing nebo příprava nad povolenými zdroji. | Ověřené pokrytí, aktuálnost, správné stavy a prokázaná úspora. | Částečně. I5.1 a I5.N sloučeno do `main` a ověřeno proti demo gateway; I5.3 neimplementováno. |
-| I6 — otevřená rozhraní | API/MCP, případně další capture adaptér a schvalované akce. | Ověřený přístupový model a samostatný test každého nového vstupu či akce. | Částečně. I6.1 hotovo a v `main` (`f4c7ed4`); I6.2 a I6.3 nezahájeno. |
+| I6 — otevřená rozhraní | API/MCP, případně další capture adaptér a schvalované akce. | Ověřený přístupový model a samostatný test každého nového vstupu či akce. | Částečně. I6.1 a I6.2 hotovo a v `main` (`f4c7ed4`, `5452aa3`); I6.3 nezahájeno. |
 
 Kalendářní odhady záměrně nejsou v této tabulce; pořadí prací, závislosti a velikosti jednotlivých fází jsou v [ROADMAP.md](ROADMAP.md). Původní odhady 1–3 dny na modul nezahrnovaly plně změny capture, persistenci a obnovu, a nejsou závazným plánem.
 
