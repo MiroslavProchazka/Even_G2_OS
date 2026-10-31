@@ -33,6 +33,7 @@
     "test:coverage": "node --import tsx --test --experimental-test-coverage --test-coverage-lines=90 --test-coverage-branches=80 --test-coverage-functions=80 --test-coverage-exclude='tests/**' --test-coverage-exclude='scripts/**' tests/*.test.ts tests/*.test.mjs",
     "gateway": "node --env-file=.env server/index.mjs",
     "gateway:demo": "node server/index.mjs --demo",
+    "mcp": "node server/mcp/server.mjs",
     "session:import": "node scripts/session-import.mjs",
     "session:summary": "node scripts/session-summary.mjs",
     "eval:summary": "node scripts/summary-eval.mjs",
@@ -47,6 +48,7 @@
   },
   "dependencies": {
     "@evenrealities/even_hub_sdk": "0.0.16",
+    "@modelcontextprotocol/sdk": "^1.32.2",
     "better-sqlite3": "^12.4.1"
   },
   "devDependencies": {
