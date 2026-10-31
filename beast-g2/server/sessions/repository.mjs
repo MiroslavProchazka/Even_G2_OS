@@ -118,19 +118,29 @@ export class Repository {
     return this.db.prepare(`SELECT ${sessionColumns} FROM sessions s WHERE s.id = ?`).get(id) ?? null
   }
 
-  listSessions(limit = 50) {
-    return this.db
-      .prepare(
-        `SELECT ${sessionColumns},
+  listSessions(limit = 50, { workspaceId } = {}) {
+    const select = `SELECT ${sessionColumns},
           (SELECT COUNT(*) FROM transcript_turns t WHERE t.session_id = s.id) AS turnCount,
           (SELECT COUNT(*) FROM segments g WHERE g.session_id = s.id) AS segmentCount,
           (SELECT COUNT(*) FROM coverage_gaps g WHERE g.session_id = s.id AND g.state = 'open') AS gapCount
-        FROM sessions s
+        FROM sessions s`
+    return workspaceId
+      ? this.db
+          .prepare(
+            `${select}
+        WHERE s.status != 'deleted' AND s.workspace_id = ?
+        ORDER BY s.created_at DESC, s.id DESC
+        LIMIT ?`
+          )
+          .all(workspaceId, limit)
+      : this.db
+          .prepare(
+            `${select}
         WHERE s.status != 'deleted'
         ORDER BY s.created_at DESC, s.id DESC
         LIMIT ?`
-      )
-      .all(limit)
+          )
+          .all(limit)
   }
 
   updateSession(id, patch) {

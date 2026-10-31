@@ -4,6 +4,8 @@ import http from 'node:http'
 import os from 'node:os'
 import path from 'node:path'
 import { timingSafeEqual, randomUUID } from 'node:crypto'
+import { createPublicApi } from './api/public.mjs'
+import { parsePublicApiTokens } from './api/scopes.mjs'
 import { ApiError } from './errors.mjs'
 import { readBody, sendJson } from './http-util.mjs'
 import { createRequestLog } from './log.mjs'
@@ -71,7 +73,10 @@ export function loadConfig(env = process.env) {
     workerBackoffMs: integer('WORKER_BACKOFF_MS', env.WORKER_BACKOFF_MS ?? 1000, 0, 60000),
     workerTimeoutMs: integer('WORKER_TIMEOUT_MS', env.WORKER_TIMEOUT_MS ?? 90000, 1000, 300000),
     writerLeaseMs: integer('WRITER_LEASE_MS', env.WRITER_LEASE_MS ?? 60000, 5000, 600000),
-    diskReserveBytes: integer('DISK_RESERVE_BYTES', env.DISK_RESERVE_BYTES ?? 67108864, 1048576, 1073741824)
+    diskReserveBytes: integer('DISK_RESERVE_BYTES', env.DISK_RESERVE_BYTES ?? 67108864, 1048576, 1073741824),
+    // A disabled API ignores PUBLIC_API_TOKENS completely, including malformed JSON.
+    publicApiEnabled: env.PUBLIC_API_ENABLED === '1',
+    publicApiTokens: env.PUBLIC_API_ENABLED === '1' ? parsePublicApiTokens(env.PUBLIC_API_TOKENS) : []
   }
   if (!Number.isFinite(config.timeout) || config.timeout < 1000 || config.timeout > 300000) throw new Error('Invalid UPSTREAM_TIMEOUT_MS')
   if (!Number.isInteger(config.rateLimit) || config.rateLimit < 1 || config.rateLimit > 1000) throw new Error('Invalid RATE_LIMIT')
@@ -231,6 +236,7 @@ export function createGateway(config, fetchImpl = fetch) {
     windowStart = 0,
     windowCount = 0
   const requestLog = config.requestLog ?? createRequestLog({ write: config.log })
+  const publicApi = createPublicApi({ tokens: config.publicApiTokens ?? [], sessions: config.sessions, summaries: config.summaries })
   const rateLimit = config.rateLimit ?? 30,
     rateWindowMs = config.rateWindowMs ?? 60000
   const allowRequest = () => {
@@ -251,11 +257,13 @@ export function createGateway(config, fetchImpl = fetch) {
       ? 'stt'
       : req.url?.startsWith('/api/chat')
         ? 'chat'
-        : req.url?.startsWith('/api/sessions')
-          ? 'sessions'
-          : req.url?.startsWith('/api/briefing')
-            ? 'briefing'
-            : 'health'
+        : req.url?.startsWith('/api/public')
+          ? 'public'
+          : req.url?.startsWith('/api/sessions')
+            ? 'sessions'
+            : req.url?.startsWith('/api/briefing')
+              ? 'briefing'
+              : 'health'
     let failure
     let logged = false
     const logRequest = (code) => {
@@ -284,6 +292,7 @@ export function createGateway(config, fetchImpl = fetch) {
       res.setHeader('Vary', 'Origin')
       res.setHeader('Access-Control-Expose-Headers', 'X-Request-Id')
     }
+    const route = new URL(req.url, 'http://localhost').pathname
     if (req.method === 'OPTIONS') {
       res.writeHead(204, {
         'Access-Control-Allow-Methods': 'GET, POST, PATCH, DELETE, OPTIONS',
@@ -291,7 +300,30 @@ export function createGateway(config, fetchImpl = fetch) {
       })
       return res.end()
     }
-    const route = new URL(req.url, 'http://localhost').pathname
+    // Public routes are mounted before the gateway-token check, so a public token never has to
+    // match GATEWAY_TOKEN. The module enforces its own bearer token, scopes, workspace and the
+    // read-only method rule; the origin check, rate limiter and request log stay in force.
+    if (route === '/api/public' || route.startsWith('/api/public/')) {
+      if (publicApi.enabled && !allowRequest()) {
+        res.setHeader('Retry-After', String(Math.ceil(rateWindowMs / 1000)))
+        return reject(429, 'rate_limited', 'Too many requests. Retry later.')
+      }
+      try {
+        return await publicApi.route(req, res, route, id)
+      } catch (error) {
+        if (res.destroyed) return
+        const status = error instanceof ApiError ? error.status : 500
+        const code = error instanceof ApiError ? error.code : 'internal_error'
+        failure = code
+        const payload = {
+          error: code,
+          message: error instanceof ApiError ? error.message : 'Request failed.',
+          requestId: id
+        }
+        if (!res.headersSent) return sendJson(res, status, payload)
+        return res.end()
+      }
+    }
     const callback = route === NOTION_CALLBACK && req.method === 'GET'
     if (!callback && !authorized(req.headers.authorization, config.token)) return reject(401, 'unauthorized', 'Invalid gateway token.')
     if (!allowRequest()) {
@@ -332,6 +364,7 @@ export function createGateway(config, fetchImpl = fetch) {
         summaries: Boolean(config.summaries),
         workContext: Boolean(config.work),
         briefing: Boolean(config.sessions),
+        publicApi: publicApi.enabled,
         requestId: id
       })
     // Session routes and the briefing route share one error mapping: ApiError keeps its status and code, anything else is

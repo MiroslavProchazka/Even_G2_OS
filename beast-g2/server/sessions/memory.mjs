@@ -175,6 +175,19 @@ export function listRetainedMemoryItems({ repo, workspaceId, status, query } = {
 }
 
 /**
+ * Approved (or explicitly requested) items of one workspace, newest first. This is the only read the
+ * public API uses: it includes items whose source session was deleted, because the row keeps its text
+ * and records `evidenceState: 'lost'` instead of pointing at a missing turn.
+ */
+export function listWorkspaceMemoryItems({ repo, workspaceId, status = 'approved' } = {}) {
+  if (!MEMORY_STATUSES.includes(status)) {
+    throw new ApiError(400, 'invalid_status', `status must be one of ${MEMORY_STATUSES.join(', ')}.`)
+  }
+  const rows = repo.db.prepare(`SELECT ${memoryColumns} FROM memory_items WHERE workspace_id = ? AND status = ? ORDER BY created_at DESC, id DESC`).all(workspaceId, status)
+  return rows.map(publicItem)
+}
+
+/**
  * Approves or rejects a proposed item. The same status is idempotent and keeps the original timestamp; any other
  * transition, including leaving a rejected or superseded item, is a conflict.
  */

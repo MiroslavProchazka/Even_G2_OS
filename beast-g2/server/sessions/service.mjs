@@ -128,8 +128,8 @@ export class SessionService {
     })
   }
 
-  listSessions({ limit = 50 } = {}) {
-    return this.repo.listSessions(integer(limit, 'limit', 1, 100))
+  listSessions({ limit = 50, workspaceId } = {}) {
+    return this.repo.listSessions(integer(limit, 'limit', 1, 100), { workspaceId })
   }
 
   getSessionDetail(sessionId) {
