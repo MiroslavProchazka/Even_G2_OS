@@ -9,7 +9,7 @@ conflict-free.
 
 | File | Responsibility |
 | --- | --- |
-| `server/gateway.mjs` | HTTP server, auth, CORS, rate limit, `/api/health`, `/api/chat`, `/api/transcribe`. |
+| `server/gateway.mjs` | HTTP server, auth, CORS, rate limit, `/api/health`, `/api/chat`, `/api/transcribe`, `/api/briefing` dispatch. |
 | `server/sessions/http.mjs` | Thin `/api/sessions` dispatcher: prefix check, 405 helper, 404, registry loop. |
 | `server/sessions/routes/index.mjs` | Ordered route registry. |
 | `server/sessions/routes/sessions.mjs` | Session lifecycle, segments, import, gaps, export, turn corrections. |
@@ -29,6 +29,8 @@ conflict-free.
 | `server/sessions/retention.mjs` | Audio and session expiry, text-free deletion journal. |
 | `server/sessions/repository.mjs` | SQL queries; no HTTP knowledge. |
 | `server/sessions/worker.mjs` | Transcription and summary job runner. |
+| `server/briefing/briefing.mjs` | Deterministic briefing aggregation, source verification and stable item ids. |
+| `server/briefing/routes.mjs` | `POST /api/briefing` workspace route; selection validation and response. |
 
 ## Route module contract
 
@@ -73,6 +75,13 @@ Rules:
 - Keep the existing response shapes and status codes. The route registry is a refactor seam,
   not an API change.
 
+`server/briefing/` is not a session route module. `POST /api/briefing` is a workspace route
+dispatched directly by `gateway.mjs` before the `/api/sessions` block, so the session
+dispatcher and its prefix guard stay unchanged. `server/briefing/routes.mjs` exports
+`match(parts)` and `routeBriefing(ctx)`; `ctx` carries `req`, `res`, `route`, `service`,
+`summary` and `requestId`. The route is read-only and never calls a model. See
+[BRIEFING.md](BRIEFING.md) for the request, response and verification contract.
+
 ## Migration contract
 
 A migration module is a `.mjs` file in `server/sessions/migrations/` that exports:
@@ -94,6 +103,7 @@ and a new version instead.
 | --- | --- |
 | `server/gateway.mjs`, `server/sessions/http.mjs`, `server/sessions/db.mjs`, `server/sessions/index.mjs` | I4.0 only. Frozen after the seams land; I7.2 may change logging in `gateway.mjs` without changing routes or responses. |
 | `server/sessions/routes/<domain>.mjs` | The phase that owns the domain. |
+| `server/briefing/*` | I5.1. |
 | `server/sessions/migrations/<version>-<name>.mjs` | The phase that owns the domain. |
 | `server/sessions/service.mjs`, `repository.mjs`, `summary.mjs` | Existing session core; extend only for core changes. |
 | `src/session-api.ts`, `src/sessions.ts` | I4.0 barrel; new domains add files under `src/session-api/` and `src/sessions/panels/`. A new client domain extends the class chain in `session.ts` with one import and one `extends`. |

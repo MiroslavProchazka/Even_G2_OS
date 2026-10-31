@@ -2,7 +2,7 @@ const MAX_ENTRIES = 200
 const REQUEST_ID = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,63}$/
 const ERROR_CODE = /^[a-z][a-z0-9_]{0,63}$/
 const METHOD = /^[A-Z]{3,10}$/
-const STAGES = new Set(['stt', 'chat', 'sessions', 'health', 'app', 'other'])
+const STAGES = new Set(['stt', 'chat', 'sessions', 'briefing', 'health', 'app', 'other'])
 
 /** Path only: a query string, fragment or unexpected character never reaches the log. */
 export function safeRoute(value) {
