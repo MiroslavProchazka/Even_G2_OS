@@ -1,7 +1,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { SessionApiError, SessionClient } from '../src/session-api'
-import type { SessionPreparation, SessionSummary, SummaryContent } from '../src/session-api'
+import type { Briefing, SessionPreparation, SessionSummary, SummaryContent } from '../src/session-api'
 import type { Settings } from '../src/api'
 const settings: Settings = { gateway: 'https://gateway.example.com', token: 'test-only-secret', language: 'cs' }
 function stub(t: any, handler: typeof fetch) {
@@ -100,7 +100,8 @@ test('the public barrel keeps the whole client surface on one prototype', () => 
     'listRetainedMemory',
     'proposeMemory',
     'setMemoryStatus',
-    'supersedeMemory'
+    'supersedeMemory',
+    'createBriefing'
   ]
   for (const name of methods) assert.equal(typeof client[name], 'function', `${name} is missing from the barrel contract`)
 })
@@ -200,6 +201,23 @@ test('a memory status change through the barrel patches only the status', async 
   assert.equal(url, 'https://gateway.example.com/api/sessions/ses_1/memory/mem_1')
   assert.equal(method, 'PATCH')
   assert.deepEqual(JSON.parse(body), { status: 'approved' })
+})
+
+test('a briefing request through the barrel posts the selected session ids', async (t) => {
+  let url = '',
+    method = '',
+    body = ''
+  stub(t, async (input, init) => {
+    url = String(input)
+    method = init!.method ?? 'GET'
+    body = String(init!.body ?? '')
+    return Response.json({ briefing: { generatedAt: '2026-10-26T10:00:00.000Z', maxSessions: 3, sources: [], items: [] } })
+  })
+  const result: { briefing: Briefing } = await new SessionClient(() => settings).createBriefing({ sessionIds: ['ses_1', 'ses_2'] })
+  assert.equal(result.briefing.maxSessions, 3)
+  assert.equal(url, 'https://gateway.example.com/api/briefing')
+  assert.equal(method, 'POST')
+  assert.equal(body, JSON.stringify({ sessionIds: ['ses_1', 'ses_2'] }))
 })
 
 test('a memory replacement through the barrel posts the new claim and optional kind', async (t) => {

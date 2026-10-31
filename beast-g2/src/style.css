@@ -508,3 +508,58 @@ input[type='checkbox'] {
   width: auto;
   margin-right: 8px;
 }
+.sessions-briefing {
+  margin-top: 24px;
+  border-top: 1px solid #303a31;
+  padding-top: 12px;
+}
+.sessions-briefing-form {
+  display: grid;
+  gap: 8px;
+  margin: 10px 0;
+}
+.sessions-briefing-sessions {
+  display: grid;
+  gap: 2px;
+  margin: 0;
+  border: 1px solid #303a31;
+  border-radius: 8px;
+  padding: 8px 12px;
+}
+.sessions-briefing-sessions legend {
+  padding: 0 6px;
+  color: #ccd8c6;
+  font-size: 12px;
+}
+.session-briefing-option {
+  display: flex;
+  align-items: center;
+  color: #d4dfce;
+  font-size: 13px;
+}
+.session-briefing-source,
+.session-briefing-item {
+  border: 1px solid #303a31;
+  border-radius: 10px;
+  padding: 10px 12px;
+  margin: 8px 0;
+  overflow-wrap: anywhere;
+}
+.session-briefing-source {
+  display: grid;
+  gap: 4px;
+}
+.session-briefing-item p {
+  margin: 4px 0;
+}
+.sessions-briefing ul {
+  list-style: none;
+  padding: 0;
+  margin: 6px 0;
+}
+.session-briefing-citations {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin: 6px 0 0;
+}

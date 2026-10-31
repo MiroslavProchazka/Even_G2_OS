@@ -45,3 +45,4 @@ export type {
   SupersedeMemoryInput,
   SupersedeMemoryResponse
 } from './session-api/memory'
+export type { Briefing, BriefingCitation, BriefingItem, BriefingItemKind, BriefingSource, BriefingSourceReason, BriefingVerification, CreateBriefingInput } from './session-api/briefing'

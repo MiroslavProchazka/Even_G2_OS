@@ -1,4 +1,5 @@
 import type { SessionsDeps } from '../../sessions'
+import { briefingPanel } from './briefing'
 import { captionsPanel } from './captions'
 import { hintsPanel } from './hints'
 import { memoryPanel } from './memory'
@@ -33,5 +34,6 @@ registerSessionPanel(newSessionPanel)
 registerSessionPanel(searchPanel)
 registerSessionPanel(qaPanel)
 registerSessionPanel(memoryPanel)
+registerSessionPanel(briefingPanel)
 registerSessionPanel(captionsPanel)
 registerSessionPanel(hintsPanel)
