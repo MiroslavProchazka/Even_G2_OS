@@ -206,7 +206,10 @@ U každé fáze je uvedený cíl, závislosti, vlastněné soubory, kritéria p�
 
 **Odhad:** M.
 
+**Stav:** hotovo 30. 10. 2026, server `a1707f7` a klient `d95d9a4`, v `main` od `de2af4f` a `ff7a9e4`. Ověřeno 31. 10. 2026 proti `npm run gateway:demo` v Chromiu: dvě relace se souhrnem vrátily dvě `verified` zdroje a osm položek se citacemi; relace bez souhrnu vrátila `unverified` s důvodem `no_summary` a nepřispěla žádnou položkou. Simulátor načetl balíček bez chyby v konzoli, ale panel briefingu v jeho webview nešel ovládat, protože automation API umí jen vstupy do brýlí. Ověření na G2 otevřené.
+
 ### I5.2 Read-only konektor
+
 
 **Cíl:** Připojit jeden konkrétní pracovní systém pouze pro čtení a označit dostupnost a čas ověření.
 
@@ -222,7 +225,7 @@ U každé fáze je uvedený cíl, závislosti, vlastněné soubory, kritéria p�
 
 ### I5.N Notion MCP a explicitní pracovní Ask
 
-Rozšíření I5.2 podle zadání z 29. 10. 2026. Implementační větev `feat/notion-work-context`; není sloučena do `main`. Nevyžaduje MCP server I6.2 ani dosud neintegrované briefingové větve I5.1.
+Rozšíření I5.2 podle zadání z 29. 10. 2026. Implementační větev `feat/notion-work-context` je sloučená do `main` (`6956230`, squashed PR `e25743e`). Nevyžaduje MCP server I6.2 ani briefingové větve I5.1, které jsou také v `main`.
 
 **Rozsah:** serverový read-only MCP klient, OAuth/PKCE a šifrované tokeny, kontrola workspace, omezené search/fetch, syntéza Beastem, citované úryvky, telefonní panel a explicitní Manual Ask z G2. Vlastní domény `server/integrations/notion/`, `server/work-context/`, `src/work-*.ts`; malé integrační změny v gateway, bootstrapu, main a historii controlleru.
 
@@ -396,6 +399,7 @@ Pravidlo pro `src/main.ts`: v jedné vlně ho mění nejvýše jedna fáze. Kdy�
 
 ## 9. Historie
 
+- **1.5, 31. 10. 2026:** I5.1 a I5.N sloučené do `main` a ověřené v demo režimu. Briefing nad dvěma uloženými relacemi vrátil dva `verified` zdroje a osm citovaných položek; relace bez souhrnu vrátila `unverified` s `no_summary`. Simulátor načetl balíček a brýle bez chyby, panel v jeho webview zůstal neověřený. 405 testů.
 - **1.4, 27. 10. 2026:** hotová I4.3; paměťové položky z konkrétního turnu a revize, schválení/odmítnutí/nahrazení, `keepMemory` s `evidenceState: "lost"`, workspace seznam kept memory přes `GET /api/memory`; 347 testů v `main`, commit `9913ef0`.
 - **1.3, 27. 10. 2026:** hotové I4.2, I4.5 a I7.3; manuální smazání relace zapisuje tombstone do `deleted_sessions`, retenční CLI umí `--deleted-from` při obnově zálohy; 317 testů v `main`.
 - **1.1, 27. 10. 2026:** hotové I4.0a, I4.0b, I3.2 a I7.1; doplněn stav u fází a rozhodnutí o dalším postupu.

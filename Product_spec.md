@@ -306,7 +306,7 @@ Na základě zadání z 29. 10. 2026 přidává větev `feat/notion-work-context
 
 Krátký hint v G2 má podrobnosti a citované úryvky v telefonu. Pracovní konverzace má oddělený kontext; ruční pracovní dotazy nezapisují do historie běžného chatu. Existenci a přesnost citovaných úryvků kontroluje server; věcná opora interpretace zůstává předmětem evaluace. Výpadek zdroje není důkaz absence úkolů. Konektor nezapojuje obecnou agentní smyčku do zachytávání audia ani do automatických hintů.
 
-Stav: implementováno na samostatné větvi, neintegrováno do `main`. Syntetické testy nejsou důkazem funkčnosti skutečného Notion workspace, Beast inference, mobilní VPN ani G2. Konfigurace, limity, API a pilotní podmínky jsou v [WORK-CONTEXT.md](beast-g2/docs/WORK-CONTEXT.md).
+Stav: sloučeno do `main` (`6956230`, squashed PR `e25743e`) a v `main` od `e9f3a7a`. Syntetické testy nejsou důkazem funkčnosti skutečného Notion workspace, Beast inference, mobilní VPN ani G2. Konfigurace, limity, API a pilotní podmínky jsou v [WORK-CONTEXT.md](beast-g2/docs/WORK-CONTEXT.md).
 
 ## 12. Ověření a rozhodnutí o pokračování
 
@@ -349,7 +349,7 @@ Pokud jsou souhrny přínosné, ale hinty ruší, pokračovat s archivem a expli
 | I2 — souhrn a další příprava | Citace, opravy, revize, výběr minulého souhrnu. | FR-07/08/11 a první hodnocení přesnosti. | Hotovo. 144 testů, migrace v2, stale. Kvalita nezměřena. |
 | I3 — integrace G2 | Oddělená pipeline, dlouhá řeč, spolehlivé Pause/End a stav uložení. | Hardwarová sada a jasně uvedený podporovaný provoz. I1–I3 tvoří MVP. | Hotovo v kódu a simulátoru, 198 testů. Hardwarová sada otevřená. |
 | I4 — paměť a živá pomoc | Vyhledávání, dotazy nad relací, schvalované poznatky; oddělený experiment Captions a hintů. | Užitečnost retrievalu, opravy a smazání odvozených dat; přijatelná míra vyrušování. | Hotovo v kódu a prohlížeči. Fáze I4.0–I4.5 v [ROADMAP.md](ROADMAP.md). |
-| I5 — pracovní kontext | Jeden omezený read-only briefing nebo příprava nad povolenými zdroji. | Ověřené pokrytí, aktuálnost, správné stavy a prokázaná úspora. | Částečně. I5.1 implementováno na branchích, neintegrováno; I5.2 a I5.3 neimplementováno. |
+| I5 — pracovní kontext | Jeden omezený read-only briefing nebo příprava nad povolenými zdroji. | Ověřené pokrytí, aktuálnost, správné stavy a prokázaná úspora. | Částečně. I5.1 a I5.N sloučeno do `main` a ověřeno proti demo gateway; I5.3 neimplementováno. |
 | I6 — otevřená rozhraní | API/MCP, případně další capture adaptér a schvalované akce. | Ověřený přístupový model a samostatný test každého nového vstupu či akce. | Nezahájeno. Fáze I6.1–I6.3. |
 
 Kalendářní odhady záměrně nejsou v této tabulce; pořadí prací, závislosti a velikosti jednotlivých fází jsou v [ROADMAP.md](ROADMAP.md). Původní odhady 1–3 dny na modul nezahrnovaly plně změny capture, persistenci a obnovu, a nejsou závazným plánem.

@@ -145,3 +145,23 @@ fallback when that citation exists and is current.
   "nothing new" and never as `done`.
 - Coverage is the summary coverage snapshot. It is `null` when there is no summary.
 - An empty transcript or a summary without citations is not a valid source.
+
+## Verification record
+
+Checked on 31 October 2026 against `npm run gateway:demo` on `127.0.0.1:8787`, with
+405 tests and typecheck, lint, Prettier and the production build green.
+
+- Two stored sessions with a ready demo summary and a third without any summary were
+  created over HTTP. `POST /api/briefing` with two of them returned `200`, both
+  sources `verified` with `reason: null`, and eight items with a source session, a
+  date, a summary id and a quoted citation.
+- Selecting the session without a summary returned `unverified` with
+  `no_summary`, showed the explicit reason in the panel and contributed no items,
+  while the other two sources still returned their items.
+- The panel itself was driven in Chromium against the same gateway: session picker,
+  the three-session limit, the result groups and the unverified block all rendered.
+- The official simulator loaded the bundle with the SDK bridge and rendered the lens
+  idle screen; the console had no error or warning entries. The simulator
+  automation API can send glasses input and screenshots only, so it cannot click the
+  phone controls; the briefing panel was therefore not exercised inside the simulator
+  webview. Hardware remains untested.
