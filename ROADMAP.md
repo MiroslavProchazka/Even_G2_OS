@@ -261,6 +261,8 @@ Rozšíření I5.2 podle zadání z 29. 10. 2026. Implementační větev `feat/n
 
 **Odhad:** M.
 
+**Stav:** hotovo 31. 10. 2026, commit `f4c7ed4` (fast-forward do `main`). `/api/public/` nabízí `/me`, seznam a detail relací, souhrn a schválenou paměť; bearer tokeny se ověřují přes SHA-256 v konstantním čase, scopes a workspace pocházejí z tokenu. Cizí prostor vrací 404, chybějící scope 403, jiná metoda než GET 405 s `Allow: GET` (OPTIONS zůstává CORS preflight) a vypnuté API 404 `public_api_disabled`. Ověřeno 31. 10. 2026 proti běžícímu gateway procesu: 16/16 scénářů, 420 testů v `main`, typecheck, lint, Prettier a build zelené. Reálný klientský provoz, proxy, VPN a hardware neověřeny.
+
 ### I6.2 MCP server
 
 **Cíl:** Nabídnout read-only nástroje MCP nad stejným API.
@@ -399,6 +401,7 @@ Pravidlo pro `src/main.ts`: v jedné vlně ho mění nejvýše jedna fáze. Kdy�
 
 ## 9. Historie
 
+- **1.6, 31. 10. 2026:** hotová I6.1, read-only API `/api/public/` s bearer tokeny, scopes a izolací workspace; fast-forward do `main` (`f4c7ed4`), 420 testů. Ověřeno proti běžícímu gateway procesu 16/16 scénářů; MCP server I6.2 a schvalované akce I6.3 zůstávají otevřené.
 - **1.5, 31. 10. 2026:** I5.1 a I5.N sloučené do `main` a ověřené v demo režimu. Briefing nad dvěma uloženými relacemi vrátil dva `verified` zdroje a osm citovaných položek; relace bez souhrnu vrátila `unverified` s `no_summary`. Simulátor načetl balíček a brýle bez chyby, panel v jeho webview zůstal neověřený. 405 testů.
 - **1.4, 27. 10. 2026:** hotová I4.3; paměťové položky z konkrétního turnu a revize, schválení/odmítnutí/nahrazení, `keepMemory` s `evidenceState: "lost"`, workspace seznam kept memory přes `GET /api/memory`; 347 testů v `main`, commit `9913ef0`.
 - **1.3, 27. 10. 2026:** hotové I4.2, I4.5 a I7.3; manuální smazání relace zapisuje tombstone do `deleted_sessions`, retenční CLI umí `--deleted-from` při obnově zálohy; 317 testů v `main`.
