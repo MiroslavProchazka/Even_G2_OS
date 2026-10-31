@@ -1,3 +1,4 @@
+import { mountWorkContext } from './work-context'
 import { StatusMonitor } from './status'
 import { diagnostics, errorCode } from './diagnostics'
 import './style.css'
@@ -57,13 +58,16 @@ let settings: Settings = {
   sttModel: sttModel.value.trim(),
   sttPrompt: element<HTMLInputElement>('stt-prompt').value.trim().slice(0, 300)
 }
+const workPanel = mountWorkContext(root.querySelector<HTMLElement>('main > section')!, () => settings)
 const gatewayApi = new GatewayClient(() => settings),
   beastApi = new BeastClient(() => settings)
 const currentApi = () => (settings.transport === 'direct' ? beastApi : gatewayApi)
 const api = {
+  managesHistory: () => workPanel.enabled() && element<HTMLSelectElement>('mode').value === 'manual',
   health: () => currentApi().health(),
   transcribe: (...args: Parameters<GatewayClient['transcribe']>) => currentApi().transcribe(...args),
-  chat: (...args: Parameters<GatewayClient['chat']>) => currentApi().chat(...args)
+  chat: (...args: Parameters<GatewayClient['chat']>) =>
+    workPanel.enabled() && element<HTMLSelectElement>('mode').value === 'manual' ? workPanel.answer(args[0], args[2], args[3]) : currentApi().chat(...args)
 }
 let port: AudioPort = {
   async start() {
@@ -247,6 +251,7 @@ function paint() {
   element<HTMLSelectElement>('mode').disabled = switchingMode
 }
 function apply() {
+  workPanel.reset()
   if (transport.value === 'direct') beastUrl(gateway.value.trim(), 'models')
   else gatewayUrl(gateway.value.trim(), '/api/health')
   settings = {
@@ -436,6 +441,7 @@ element('next').addEventListener('click', () => {
   paint()
 })
 element('clear').addEventListener('click', () => {
+  workPanel.reset()
   controller.clearHistory()
   continuous.clearHistory()
   simulation.clearHistory()
@@ -465,6 +471,7 @@ element('ask').addEventListener('submit', (event) => {
 })
 // A persisted page keeps its SDK subscription and display for bfcache restoration.
 window.addEventListener('pagehide', (event) => {
+  workPanel.reset()
   void pauseAll(true)
   if (!event.persisted) {
     pageClosed = true

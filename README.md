@@ -39,6 +39,10 @@ Copy `.env.example` to `.env` and fill in the provider endpoints, provider key a
 
 Never put credentials in source files, frontend `VITE_*` variables, the manifest or the `.ehpk`. The phone receives only a gateway token entered at runtime; the frontend keeps it in memory and saves only non-secret settings (gateway origin, language, model names and optional vocabulary) as preferences. The gateway keeps conversations in memory by default. The opt-in session store adds SQLite-backed sessions, WAV import, transcripts, coverage gaps, traceable summaries, preparation snapshots and export; audio is deleted after transcription or after 24 hours, and ended sessions expire after 30 days. Deleting a session also removes preparations for which it is the source or target. See [beast-g2/docs/SESSIONS.md](beast-g2/docs/SESSIONS.md). Use HTTPS for deployment.
 
+### Notion work context
+
+An opt-in [work-context extension](beast-g2/docs/WORK-CONTEXT.md) adds read-only Notion retrieval through the gateway, Beast synthesis, source excerpts and separate follow-up context. The phone shows full detail; manual G2 Ask shows a short hint. Requires a configured work workspace, server-side OAuth credentials and VPN reachability. Live Notion/Beast and device behavior remain unverified.
+
 ### Build for the glasses
 
 ```sh

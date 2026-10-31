@@ -8,6 +8,7 @@ import { readBody, sendJson } from './http-util.mjs'
 import { createRequestLog } from './log.mjs'
 import { routeSessions } from './sessions/http.mjs'
 import { transcribeAudio } from './stt.mjs'
+import { routeWork, NOTION_CALLBACK } from './work-context/routes.mjs'
 
 const MAX_AUDIO = 960044
 function parseOrigins(value) {
@@ -224,6 +225,7 @@ async function upstream(fetchImpl, url, options, stage) {
   return response
 }
 export function createGateway(config, fetchImpl = fetch) {
+  let workActive = 0
   let active = 0,
     windowStart = 0,
     windowCount = 0
@@ -280,12 +282,37 @@ export function createGateway(config, fetchImpl = fetch) {
       })
       return res.end()
     }
-    if (!authorized(req.headers.authorization, config.token)) return reject(401, 'unauthorized', 'Invalid gateway token.')
+    const route = new URL(req.url, 'http://localhost').pathname
+    const callback = route === NOTION_CALLBACK && req.method === 'GET'
+    if (!callback && !authorized(req.headers.authorization, config.token)) return reject(401, 'unauthorized', 'Invalid gateway token.')
     if (!allowRequest()) {
       res.setHeader('Retry-After', String(Math.ceil(rateWindowMs / 1000)))
       return reject(429, 'rate_limited', 'Too many requests. Retry later.')
     }
-    const route = new URL(req.url, 'http://localhost').pathname
+    if (route.startsWith('/api/work/') || route.startsWith('/api/notion/')) {
+      const expensive = !['/api/notion/status', '/api/notion/disconnect'].includes(route)
+      if (expensive && workActive >= 2) return reject(429, 'busy', 'Gateway is busy. Try again shortly.')
+      if (expensive) workActive++
+      const controller = new AbortController()
+      const timer = setTimeout(() => {
+        controller.abort()
+        if (!req.complete) req.destroy()
+      }, config.timeout)
+      res.on('close', () => controller.abort())
+      try {
+        return await routeWork({ req, res, route, work: config.work, requestId: id, signal: controller.signal })
+      } catch (error) {
+        if (res.destroyed) return
+        return reject(
+          controller.signal.aborted ? 504 : error instanceof ApiError ? error.status : 502,
+          controller.signal.aborted ? 'timeout' : error instanceof ApiError ? error.code : 'work_unavailable',
+          controller.signal.aborted ? 'Work request timed out.' : error instanceof ApiError ? error.message : 'Work context is unavailable. Check VPN and provider access.'
+        )
+      } finally {
+        clearTimeout(timer)
+        if (expensive) workActive--
+      }
+    }
     if (req.method === 'GET' && route === '/api/health')
       return sendJson(res, 200, {
         ok: true,
@@ -294,6 +321,7 @@ export function createGateway(config, fetchImpl = fetch) {
         webSearch: !config.demo && Boolean(config.searchKey),
         sessions: Boolean(config.sessions),
         summaries: Boolean(config.summaries),
+        workContext: Boolean(config.work),
         requestId: id
       })
     if (route === '/api/sessions' || route.startsWith('/api/sessions/') || route === '/api/memory') {
